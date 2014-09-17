@@ -170,7 +170,7 @@ def update_p_cp(world):
     pid = multiprocessing.current_process().pid
     for j, joint in enumerate(world.joints):
         v = Record.records[pid]["v_" + str(j)][0:].as_matrix()
-        af = Record.record[pid]["applied_force_" + str(j)][0:].as_matrix()
+        af = Record.records[pid]["applied_force_" + str(j)][0:].as_matrix()
         
         vn = v[:-1] + af[:-1]
         d = np.zeros(v.shape)
