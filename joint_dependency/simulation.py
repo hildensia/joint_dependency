@@ -1,10 +1,12 @@
 import numpy as np
 import pandas as pd
 import random
+import multiprocessing
 
 
 class Record(object):
-    record = pd.DataFrame()
+    # record = pd.DataFrame()
+    records = {}
 
     def __init__(self, columns):
         self.columns = columns
@@ -20,7 +22,9 @@ class Record(object):
                     columns[i] += "_" + str(_self.index)
             rec = pd.DataFrame([data], index=_self.world.get_index(),
                                columns=columns)
-            Record.record = Record.record.combine_first(rec)
+            pid = multiprocessing.current_process().pid
+            old_record = Record.records.get(pid, pd.DataFrame())
+            Record.records[pid] = old_record.combine_first(rec)
             return data
 
         return wrapped_f

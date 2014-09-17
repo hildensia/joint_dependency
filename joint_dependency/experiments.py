@@ -3,7 +3,8 @@ from __future__ import division
 from joint_dependency.simulation import (Joint, World, MultiLocker, Record,
                                          Controller)
 from joint_dependency.inference import (model_posterior, same_segment,
-                                        exp_cross_entropy)
+                                        exp_cross_entropy, random_objective,
+                                        exp_neg_entropy)
 
 import bayesian_changepoint_detection.offline_changepoint_detection as bcd
 
@@ -11,6 +12,8 @@ from functools import partial
 import datetime
 import pickle
 from enum import Enum
+import multiprocessing
+import argparse
 
 import numpy as np
 import pandas as pd
@@ -164,9 +167,10 @@ def get_probability_over_degree(P, qs):
 
 def update_p_cp(world):
     P_cp = []
+    pid = multiprocessing.current_process().pid
     for j, joint in enumerate(world.joints):
-        v = Record.record["v_" + str(j)][0:].as_matrix()
-        af = Record.record["applied_force_" + str(j)][0:].as_matrix()
+        v = Record.records[pid]["v_" + str(j)][0:].as_matrix()
+        af = Record.record[pid]["applied_force_" + str(j)][0:].as_matrix()
         
         vn = v[:-1] + af[:-1]
         d = np.zeros(v.shape)
@@ -175,7 +179,7 @@ def update_p_cp(world):
         nans, x = nan_helper(d)
         d[nans] = np.interp(x(nans), x(~nans), d[~nans])
         Q, P, Pcp = bcd.offline_changepoint_detection(data=d, prior_func=partial(bcd.const_prior, l=(len(d)+1)), observation_log_likelihood_function=bcd.gaussian_obs_log_likelihood, truncate=-50)
-        p_cp, count = get_probability_over_degree(np.exp(Pcp).sum(0),  Record.record['q_' + str(j)][0:].as_matrix())
+        p_cp, count = get_probability_over_degree(np.exp(Pcp).sum(0),  Record.records[pid]['q_' + str(j)][0:].as_matrix())
         P_cp.append(p_cp)
     return P_cp
 
@@ -293,7 +297,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     return data, metadata
 
 
-def main():
+def run_experiment(args):
     world = create_world()
     controllers = []
     for j, _ in enumerate(world.joints):
@@ -316,15 +320,37 @@ def main():
                             np.sum(model_prior[:, :-1], 1)).T *
                            (1-independent_prior))
 
-    print(model_prior)
+    if args.objective == "random":
+        objective = random_objective
+    elif args.objective == "entropy":
+        objective = exp_neg_entropy
+    elif args.objective == "cross_entropy":
+        objective = exp_cross_entropy
 
-    data, metadata = dependency_learning(20, 4000, world, exp_cross_entropy,
-                                         True, alpha_prior, model_prior,
-                                         controllers)
+    data, metadata = dependency_learning(args.queries, args.samples, world,
+                                         objective, args.changepoint,
+                                         alpha_prior, model_prior, controllers)
+
     filename = "data_" + str(metadata["Date"]).replace(" ", "-") + (".pkl")
     with open(filename, "wb") as _file:
         pickle.dump((data, metadata), _file)
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-o", "--objective", required=True,
+                        help="The objective to optimize for exploration",
+                        choice=['random', 'entropy', 'cross_entropy'])
+    parser.add_argument("-c", "--changepoint", type=bool, required=True,
+                        help="Should change points used as prior")
+    parser.add_argument("-t", "--threads", type=int, default=4,
+                        help="Number of threads used")
+    parser.add_argument("-q", "--queries", type=int, default=20,
+                        help="How many queries should the active learner make")
+    parser.add_argument("-n", "--samples", type=int, default=4000,
+                        help="How many samples should be drawn for "
+                             "optimization")
+    args = parser.parse_args()
+
+    pool = multiprocessing.Pool(args.threads)
+    pool.map(run_experiment, args)
