@@ -340,17 +340,19 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", "--objective", required=True,
                         help="The objective to optimize for exploration",
-                        choice=['random', 'entropy', 'cross_entropy'])
+                        choices=['random', 'entropy', 'cross_entropy'])
     parser.add_argument("-c", "--changepoint", type=bool, required=True,
                         help="Should change points used as prior")
     parser.add_argument("-t", "--threads", type=int, default=4,
                         help="Number of threads used")
     parser.add_argument("-q", "--queries", type=int, default=20,
                         help="How many queries should the active learner make")
-    parser.add_argument("-n", "--samples", type=int, default=4000,
+    parser.add_argument("-s", "--samples", type=int, default=4000,
                         help="How many samples should be drawn for "
                              "optimization")
+    parser.add_argument("-r", "--runs", type=int, default=20,
+                        help="Number of runs")
     args = parser.parse_args()
 
     pool = multiprocessing.Pool(args.threads)
-    pool.map(run_experiment, args)
+    pool.map(run_experiment, [args]*args.runs)
