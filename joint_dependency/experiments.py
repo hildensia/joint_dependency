@@ -13,6 +13,7 @@ import datetime
 import pickle
 from enum import Enum
 import multiprocessing
+import multiprocessing.dummy
 import argparse
 
 import numpy as np
@@ -20,7 +21,26 @@ import pandas as pd
 from scipy.stats import entropy
 
 from progressbar import ProgressBar
+from blessings import Terminal
 
+term = Terminal()
+
+class Writer(object):
+    """Create an object with a write method that writes to a
+    specific place on the screen, defined at instantiation.
+
+    This is the glue between blessings and progressbar.
+    """
+    def __init__(self, location):
+        """
+        Input: location - tuple of ints (x, y), the position
+                        of the bar in the terminal
+        """
+        self.location = location
+
+    def write(self, string):
+        with term.location(*self.location):
+            print(string)
 
 class Furniture(Enum):
     drawer_key = 0
@@ -61,6 +81,7 @@ def create_drawer_with_key(world, noise, limits):
 
     MultiLocker(world, locker=world.joints[-2], locked=world.joints[-1],
                 locks=[(limits[0][0], open_d[0]), (open_d[1], limits[0][1])])
+
 
 def create_drawer_with_handle(world, limits, open):
     pass
@@ -212,8 +233,9 @@ def calc_posteriors(world, experiences, P_same, alpha_prior, model_prior):
 
 def dependency_learning(N_actions, N_samples, world, objective_fnc,
                         use_change_points, alpha_prior, model_prior,
-                        controllers):
-    progress = ProgressBar(maxval=N_actions+2).start()
+                        controllers, location):
+    writer = Writer(location)
+    progress = ProgressBar(maxval=N_actions+2, fd=writer).start()
     progress.update(0)
     # init phase
     # initialize the probability distributions
@@ -297,7 +319,9 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     return data, metadata
 
 
-def run_experiment(args):
+def run_experiment(argst):
+    args, location = argst
+    print("Start experiment.")
     world = create_world()
     controllers = []
     for j, _ in enumerate(world.joints):
@@ -329,7 +353,8 @@ def run_experiment(args):
 
     data, metadata = dependency_learning(args.queries, args.samples, world,
                                          objective, args.changepoint,
-                                         alpha_prior, model_prior, controllers)
+                                         alpha_prior, model_prior, controllers,
+                                         location)
 
     filename = "data_" + str(metadata["Date"]).replace(" ", "-") + (".pkl")
     with open(filename, "wb") as _file:
@@ -343,7 +368,8 @@ if __name__ == '__main__':
                         choices=['random', 'entropy', 'cross_entropy'])
     parser.add_argument("-c", "--changepoint", type=bool, required=True,
                         help="Should change points used as prior")
-    parser.add_argument("-t", "--threads", type=int, default=4,
+    parser.add_argument("-t", "--threads", type=int,
+                        default=multiprocessing.cpu_count(),
                         help="Number of threads used")
     parser.add_argument("-q", "--queries", type=int, default=20,
                         help="How many queries should the active learner make")
@@ -355,4 +381,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     pool = multiprocessing.Pool(args.threads)
-    pool.map(run_experiment, [args]*args.runs)
+    pool.map(run_experiment, zip([args]*args.runs, (0, range(args.runs))))
+    pool.close()
+    pool.join()
