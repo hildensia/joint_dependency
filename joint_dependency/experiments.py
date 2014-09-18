@@ -235,7 +235,9 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
                         use_change_points, alpha_prior, model_prior,
                         controllers, location):
     writer = Writer(location)
-    widgets = [ Bar(), Percentage(), " (Run #{})".format(location[1])]
+    widgets = [ Bar(), Percentage(),
+                " (Run #{}, PID {})".format(location[1],
+                                            multiprocessing.current_process())]
     progress = ProgressBar(maxval=N_actions+2, fd=writer,
                            widgets=widgets).start()
     progress.update(0)
@@ -323,7 +325,6 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
 def run_experiment(argst):
     args, location = argst
-    print("Start experiment.")
     world = create_world()
     controllers = []
     for j, _ in enumerate(world.joints):
@@ -382,7 +383,9 @@ if __name__ == '__main__':
                         help="Number of runs")
     args = parser.parse_args()
 
-    pool = multiprocessing.Pool(args.threads)
+    print(term.clear)
+
+    pool = multiprocessing.Pool(args.threads, maxtasksperchild=1)
     pool.map(run_experiment, zip([args]*args.runs,
                                  zip([0]*args.runs, range(args.runs))))
     pool.close()
