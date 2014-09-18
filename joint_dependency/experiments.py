@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import entropy
 
-from progressbar import ProgressBar
+from progressbar import ProgressBar, Bar, Percentage
 from blessings import Terminal
 
 term = Terminal()
@@ -235,7 +235,9 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
                         use_change_points, alpha_prior, model_prior,
                         controllers, location):
     writer = Writer(location)
-    progress = ProgressBar(maxval=N_actions+2, fd=writer).start()
+    widgets = [ Bar(), Percentage(), " (Run #{})".format(location[1])]
+    progress = ProgressBar(maxval=N_actions+2, fd=writer,
+                           widgets=widgets).start()
     progress.update(0)
     # init phase
     # initialize the probability distributions
@@ -381,6 +383,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     pool = multiprocessing.Pool(args.threads)
-    pool.map(run_experiment, zip([args]*args.runs, (0, range(args.runs))))
+    pool.map(run_experiment, zip([args]*args.runs,
+                                 zip([0]*args.runs, range(args.runs))))
     pool.close()
     pool.join()
