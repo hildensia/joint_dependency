@@ -323,7 +323,6 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
 def run_experiment(argst):
     args, location = argst
-    print("Start experiment.")
     world = create_world()
     controllers = []
     for j, _ in enumerate(world.joints):
@@ -382,7 +381,9 @@ if __name__ == '__main__':
                         help="Number of runs")
     args = parser.parse_args()
 
-    pool = multiprocessing.Pool(args.threads)
+    print(term.clear)
+
+    pool = multiprocessing.Pool(args.threads, maxtasksperchild=1)
     pool.map(run_experiment, zip([args]*args.runs,
                                  zip([0]*args.runs, range(args.runs))))
     pool.close()
