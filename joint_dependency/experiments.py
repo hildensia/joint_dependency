@@ -327,6 +327,7 @@ def run_experiment(argst):
     args, location = argst
 
     # reset all things for every new experiment
+    np.random.seed()
     pid = multiprocessing.current_process().pid
     bcd.offline_changepoint_detection.data = None
     Record.records[pid] = pd.DataFrame()
