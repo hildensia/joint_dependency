@@ -237,7 +237,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     writer = Writer(location)
     widgets = [ Bar(), Percentage(),
                 " (Run #{}, PID {})".format(location[1],
-                                            multiprocessing.current_process())]
+                                            multiprocessing.current_process().pid)]
     progress = ProgressBar(maxval=N_actions+2, fd=writer,
                            widgets=widgets).start()
     progress.update(0)
