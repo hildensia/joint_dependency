@@ -325,6 +325,12 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
 def run_experiment(argst):
     args, location = argst
+
+    # reset all things for every new experiment
+    pid = multiprocessing.current_process().pid
+    bcd.offline_changepoint_detection.data = None
+    Record.records[pid] = pd.DataFrame()
+
     world = create_world()
     controllers = []
     for j, _ in enumerate(world.joints):
@@ -390,3 +396,5 @@ if __name__ == '__main__':
                                  zip([0]*args.runs, range(args.runs))))
     pool.close()
     pool.join()
+
+    print(term.clear)
