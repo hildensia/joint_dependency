@@ -298,3 +298,30 @@ class MultiLocker(object):
         elif not is_locked and should_be_locked:
             # print("lock")
             self.locked.lock()
+
+class ActionMachine(object):
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def run_action(world, controllers, pos):
+        for j, p in enumerate(pos):
+            controllers[j].move_to(p)
+            while not controllers[j].is_done():
+                world.step(.1)
+
+    @staticmethod
+    def check_state(world, controllers, joint):
+        old_pos = world.joints[joint].q
+        controllers[joint].apply_force(1, 10)
+        for i in range(10):
+            world.step(.1)
+        new_pos = world.joints[joint].q
+
+        if abs(old_pos - new_pos) > 10e-3:
+            locked_state = 0
+        else:
+            locked_state = 1
+
+        return locked_state
+
