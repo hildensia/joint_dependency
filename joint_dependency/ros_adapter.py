@@ -136,9 +136,9 @@ class RosActionMachine(object):
         # msg = MoveJoints()
         # msg.joint_pos = list(pos)
         # self.move_joints_srv(msg)
-        print("Move    : ", rel)
         print("Current : ", q)
         print("Desired : ", q_ref)
+        print("Move to : ", rel)
         raw_input("Press Key when done.")
 
     def check_state(self, joint):
