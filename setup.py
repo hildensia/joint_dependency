@@ -11,7 +11,7 @@ setup(name='joint_dependency',
       url='http://github.com/hildensia/joint_dependency',
       packages=['joint_dependency'],
       requires=['scipy', 'numpy', 'bayesian_changepoint_detection', 'pandas',
-                'progressbar', 'enum34']
+                'progressbar', 'enum34', 'roslib', 'rospy', 'blessings']
      )
 
 
