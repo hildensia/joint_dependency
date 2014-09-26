@@ -131,11 +131,12 @@ class RosActionMachine(object):
 
         q_ref = np.array(pos)
         rel = q_ref - q
+        rel[1] = -rel[1]
 
         # msg = MoveJoints()
         # msg.joint_pos = list(pos)
         # self.move_joints_srv(msg)
-        print("Move    : ", -rel)
+        print("Move    : ", rel)
         print("Current : ", q)
         print("Desired : ", q_ref)
         raw_input("Press Key when done.")
