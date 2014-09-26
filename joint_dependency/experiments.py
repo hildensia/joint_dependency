@@ -5,6 +5,8 @@ from joint_dependency.simulation import (Joint, World, MultiLocker, Record,
 from joint_dependency.inference import (model_posterior, same_segment,
                                         exp_cross_entropy, random_objective,
                                         exp_neg_entropy)
+from joint_dependency.ros_adapter import (create_ros_drawer_world,
+                                          RosActionMachine)
 
 import bayesian_changepoint_detection.offline_changepoint_detection as bcd
 
@@ -148,26 +150,26 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
     return max_pos, max_joint
 
 
-def run_action(world, controllers, pos):
-    for j, p in enumerate(pos):
-        controllers[j].move_to(p)
-        while not controllers[j].is_done():
-            world.step(.1)
+# def run_action(world, controllers, pos):
+#     for j, p in enumerate(pos):
+#         controllers[j].move_to(p)
+#         while not controllers[j].is_done():
+#             world.step(.1)
 
 
-def check_state(world, joint, controllers):
-    old_pos = world.joints[joint].q
-    controllers[joint].apply_force(1, 10)
-    for i in range(10):
-        world.step(.1)
-    new_pos = world.joints[joint].q
-
-    if abs(old_pos - new_pos) > 10e-3:
-        locked_state = 0
-    else:
-        locked_state = 1
-
-    return locked_state
+# def check_state(world, joint, controllers):
+#     old_pos = world.joints[joint].q
+#     controllers[joint].apply_force(1, 10)
+#     for i in range(10):
+#         world.step(.1)
+#     new_pos = world.joints[joint].q
+#
+#     if abs(old_pos - new_pos) > 10e-3:
+#         locked_state = 0
+#     else:
+#         locked_state = 1
+#
+#     return locked_state
 
 
 def get_probability_over_degree(P, qs):
@@ -185,21 +187,28 @@ def get_probability_over_degree(P, qs):
     probs = np.array([prior if np.isnan(p) else p for p in probs])
     return probs, count
 
-
+#TODO: fuer real world anpassem
 def update_p_cp(world):
     P_cp = []
     pid = multiprocessing.current_process().pid
     for j, joint in enumerate(world.joints):
-        v = Record.records[pid]["v_" + str(j)][0:].as_matrix()
-        af = Record.records[pid]["applied_force_" + str(j)][0:].as_matrix()
-        
-        vn = v[:-1] + af[:-1]
-        d = np.zeros(v.shape)
-        d[1:] = abs((vn**2 - v[1:]**2)/(0.1 * vn))
-        y = np.array(d)
-        nans, x = nan_helper(d)
-        d[nans] = np.interp(x(nans), x(~nans), d[~nans])
-        Q, P, Pcp = bcd.offline_changepoint_detection(data=d, prior_func=partial(bcd.const_prior, l=(len(d)+1)), observation_log_likelihood_function=bcd.gaussian_obs_log_likelihood, truncate=-50)
+        # TODO: this should work regardless of ROS or not
+        # v = Record.records[pid]["v_" + str(j)][0:].as_matrix()
+        # af = Record.records[pid]["applied_force_" + str(j)][0:].as_matrix()
+        #
+        # vn = v[:-1] + af[:-1]
+        # d = np.zeros(v.shape)
+        # d[1:] = abs((vn**2 - v[1:]**2)/(0.1 * vn))
+        # y = np.array(d)
+        # nans, x = nan_helper(d)
+        # d[nans] = np.interp(x(nans), x(~nans), d[~nans])
+
+        d = Record.records[pid]["applied_force_" + str(j)][0:].as_matrix()
+        Q, P, Pcp = bcd.offline_changepoint_detection(
+            data=d,
+            prior_func=partial(bcd.const_prior,  l=(len(d)+1)),
+            observation_log_likelihood_function=bcd.gaussian_obs_log_likelihood,
+            truncate=-50)
         p_cp, count = get_probability_over_degree(np.exp(Pcp).sum(0),  Record.records[pid]['q_' + str(j)][0:].as_matrix())
         P_cp.append(p_cp)
     return P_cp
@@ -233,7 +242,7 @@ def calc_posteriors(world, experiences, P_same, alpha_prior, model_prior):
 
 def dependency_learning(N_actions, N_samples, world, objective_fnc,
                         use_change_points, alpha_prior, model_prior,
-                        controllers, location):
+                        action_machine, location):
     writer = Writer(location)
     widgets = [ Bar(), Percentage(),
                 " (Run #{}, PID {})".format(location[1],
@@ -251,7 +260,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     locked_states = [None] * len(world.joints)
 
     for j, joint in enumerate(world.joints):
-        locked_states[j] = check_state(world, j, controllers)
+        locked_states[j] = action_machine.check_state(j)
 
         # add the experiences
         new_experience = {'data': jpos, 'value': locked_states[j]}
@@ -268,6 +277,13 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
     progress.update(1)
 
+    metadata = {'ChangePointDetection': use_change_points,
+                'Date': datetime.datetime.now(),
+                'Objective': objective_fnc.__name__,
+                'World': world,
+                'ModelPrior': model_prior,
+                'AlphaPrior': alpha_prior}
+
     for idx in range(N_actions):
 
         current_data = pd.DataFrame(index=[idx])
@@ -281,7 +297,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         current_data["CheckedJoint"] = [joint]
 
         # run best action, i.e. move joints to desired position
-        run_action(world, controllers, pos)
+        action_machine.run_action(pos)
         # get real position after action (PD-controllers aren't perfect)
         jpos = np.array([int(j.get_q()) for j in world.joints])
 
@@ -289,7 +305,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
             current_data["RealPos" + str(n)] = [p]
 
         # test whether the joints are locked or not
-        locked_states[joint] = check_state(world, joint, controllers)
+        locked_states[joint] = action_machine.check_state(joint)
         for n, p in enumerate(locked_states):
             current_data["LockingState" + str(n)] = [p]
 
@@ -312,17 +328,15 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         data = data.append(current_data)
         progress.update(idx+1)
 
-    metadata = {'ChangePointDetection': use_change_points,
-                'Date': datetime.datetime.now(),
-                'Objective': objective_fnc.__name__,
-                'World': world,
-                'ModelPrior': model_prior,
-                'AlphaPrior': alpha_prior}
+        filename = "data_" + str(metadata["Date"]).replace(" ", "-") + (".pkl")
+        with open(filename, "w") as _file:
+            pickle.dump((data, metadata), _file)
+
 
     progress.finish()
     return data, metadata
 
-
+# TODO fuer ros anpassen
 def run_experiment(argst):
     args, location = argst
 
@@ -371,6 +385,51 @@ def run_experiment(argst):
         pickle.dump((data, metadata), _file)
 
 
+def run_ros_experiment(argst):
+    args, location = argst
+
+    # reset all things for every new experiment
+    np.random.seed()
+    pid = multiprocessing.current_process().pid
+    bcd.offline_changepoint_detection.data = None
+    Record.records[pid] = pd.DataFrame()
+
+    world = create_ros_drawer_world()
+
+    alpha_prior = np.array([.1, .1])
+
+    n = len(world.joints)
+    independent_prior = .7
+
+    # the model prior is proportional to 1/distance between the joints
+    model_prior = np.array([[0 if x == y
+                             else independent_prior if x == n
+                             else 1/abs(x-y)
+                             for x in range(n+1)]
+                            for y in range(n)])
+
+    # normalize
+    model_prior[:, :-1] = ((model_prior.T[:-1, :] /
+                            np.sum(model_prior[:, :-1], 1)).T *
+                           (1-independent_prior))
+
+    if args.objective == "random":
+        objective = random_objective
+    elif args.objective == "entropy":
+        objective = exp_neg_entropy
+    elif args.objective == "cross_entropy":
+        objective = exp_cross_entropy
+
+    data, metadata = dependency_learning(args.queries, args.samples, world,
+                                         objective, args.changepoint,
+                                         alpha_prior, model_prior,
+                                         action_machine=RosActionMachine(world),
+                                         location=location)
+
+    filename = "data_" + str(metadata["Date"]).replace(" ", "-") + (".pkl")
+    with open(filename, "wb") as _file:
+        pickle.dump((data, metadata), _file)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", "--objective", required=True,
@@ -392,10 +451,12 @@ if __name__ == '__main__':
 
     print(term.clear)
 
-    pool = multiprocessing.Pool(args.threads, maxtasksperchild=1)
-    pool.map(run_experiment, zip([args]*args.runs,
-                                 zip([0]*args.runs, range(args.runs))))
-    pool.close()
-    pool.join()
+    # pool = multiprocessing.Pool(args.threads, maxtasksperchild=1)
+    # pool.map(run_experiment, zip([args]*args.runs,
+    #                              zip([0]*args.runs, range(args.runs))))
+    # pool.close()
+    # pool.join()
+
+    run_ros_experiment((args, (0, 0)))
 
     print(term.clear)

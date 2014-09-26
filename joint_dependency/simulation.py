@@ -15,16 +15,24 @@ class Record(object):
 
         def wrapped_f(*args, **kwargs):
             data = f(*args, **kwargs)
+
+            if data is None:
+                return data
+
             _self = args[0]
             columns = list(self.columns)
+
             if hasattr(_self, "index"):
                 for i, _ in enumerate(self.columns):
                     columns[i] += "_" + str(_self.index)
+
             rec = pd.DataFrame([data], index=_self.world.get_index(),
                                columns=columns)
+
             pid = multiprocessing.current_process().pid
             old_record = Record.records.get(pid, pd.DataFrame())
             Record.records[pid] = old_record.combine_first(rec)
+
             return data
 
         return wrapped_f
@@ -300,23 +308,22 @@ class MultiLocker(object):
             self.locked.lock()
 
 class ActionMachine(object):
-    def __init__(self):
-        pass
+    def __init__(self, world, controller):
+        self.world = world
+        self.controller = controller
 
-    @staticmethod
-    def run_action(world, controllers, pos):
+    def run_action(self, pos):
         for j, p in enumerate(pos):
-            controllers[j].move_to(p)
-            while not controllers[j].is_done():
-                world.step(.1)
+            self.controllers[j].move_to(p)
+            while not self.controllers[j].is_done():
+                self.world.step(.1)
 
-    @staticmethod
-    def check_state(world, controllers, joint):
-        old_pos = world.joints[joint].q
-        controllers[joint].apply_force(1, 10)
+    def check_state(self, joint):
+        old_pos = self.world.joints[joint].q
+        self.controllers[joint].apply_force(1, 10)
         for i in range(10):
-            world.step(.1)
-        new_pos = world.joints[joint].q
+            self.world.step(.1)
+        new_pos = self.world.joints[joint].q
 
         if abs(old_pos - new_pos) > 10e-3:
             locked_state = 0
