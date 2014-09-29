@@ -8,7 +8,6 @@ from joint_dependency.ros_adapter import (create_ros_drawer_world,
 from joint_dependency.simulation import (create_world, ActionMachine,
                                          Controller)
 from joint_dependency.experiments import update_p_cp, compute_p_same
-import rospy
 import numpy as np
 import cPickle
 import datetime

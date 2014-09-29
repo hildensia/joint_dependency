@@ -1,8 +1,6 @@
 import numpy as np
 import pandas as pd
 import random
-import multiprocessing
-from enum import Enum
 
 
 class Record(object):

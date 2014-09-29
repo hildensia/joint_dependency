@@ -1,7 +1,7 @@
 from __future__ import division
 
-from joint_dependency.simulation import (Joint, World, MultiLocker, Record,
-                                         Controller)
+from joint_dependency.simulation import (create_world,  Controller)
+from joint_dependency.recorder import Record
 from joint_dependency.inference import (model_posterior, same_segment,
                                         exp_cross_entropy, random_objective,
                                         exp_neg_entropy)
@@ -12,8 +12,7 @@ import bayesian_changepoint_detection.offline_changepoint_detection as bcd
 
 from functools import partial
 import datetime
-import pickle
-from enum import Enum
+import cPickle
 import multiprocessing
 import multiprocessing.dummy
 import argparse
@@ -43,8 +42,6 @@ class Writer(object):
     def write(self, string):
         with term.location(*self.location):
             print(string)
-
-
 
 
 def init(world):
@@ -87,28 +84,6 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
     return max_pos, max_joint
 
 
-# def run_action(world, controllers, pos):
-#     for j, p in enumerate(pos):
-#         controllers[j].move_to(p)
-#         while not controllers[j].is_done():
-#             world.step(.1)
-
-
-# def check_state(world, joint, controllers):
-#     old_pos = world.joints[joint].q
-#     controllers[joint].apply_force(1, 10)
-#     for i in range(10):
-#         world.step(.1)
-#     new_pos = world.joints[joint].q
-#
-#     if abs(old_pos - new_pos) > 10e-3:
-#         locked_state = 0
-#     else:
-#         locked_state = 1
-#
-#     return locked_state
-
-
 def get_probability_over_degree(P, qs):
     probs = np.zeros((360,))
     count = np.zeros((360,))
@@ -123,6 +98,7 @@ def get_probability_over_degree(P, qs):
     prior = 10e-8
     probs = np.array([prior if np.isnan(p) else p for p in probs])
     return probs, count
+
 
 #TODO: fuer real world anpassem
 def update_p_cp(world):
@@ -201,20 +177,13 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     for j, joint in enumerate(world.joints):
         locked_states[j] = action_machine.check_state(j)
 
-        if locked_states[j] == 0:
-            explored_joints.append(j)
-            action_pos = np.array(jpos)
-            action_pos[j] = joint.max_limit
-            action_machine.run_action(action_pos)
-            action_pos[j] = joint.min_limit
-            action_machine.run_action(action_pos)
-
-
         # add the experiences
         new_experience = {'data': jpos, 'value': locked_states[j]}
         experiences[j].append(new_experience)
 
-    if use_change_points:
+    if args['prob-file'] is not None:
+        with open(args['prob-file'], "r") as _file:
+            (P_cp, P_same) = cPickle.load(_file)
         P_cp = update_p_cp(world)
         P_same = compute_p_same(P_cp)
 
@@ -290,7 +259,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
         filename = "data_" + str(metadata["Date"]).replace(" ", "-") + (".pkl")
         with open(filename, "w") as _file:
-            pickle.dump((data, metadata), _file)
+            cPickle.dump((data, metadata), _file)
 
 
     progress.finish()
@@ -342,7 +311,7 @@ def run_experiment(argst):
 
     filename = "data_" + str(metadata["Date"]).replace(" ", "-") + (".pkl")
     with open(filename, "wb") as _file:
-        pickle.dump((data, metadata), _file)
+        cPickle.dump((data, metadata), _file)
 
 
 def run_ros_experiment(argst):
@@ -388,7 +357,7 @@ def run_ros_experiment(argst):
 
     filename = "data_" + str(metadata["Date"]).replace(" ", "-") + (".pkl")
     with open(filename, "wb") as _file:
-        pickle.dump((data, metadata), _file)
+        cPickle.dump((data, metadata), _file)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -407,6 +376,8 @@ if __name__ == '__main__':
                              "optimization")
     parser.add_argument("-r", "--runs", type=int, default=20,
                         help="Number of runs")
+    parser.add_argument("-p", "--prob-file", type=str, default=None,
+                        help="The file with the probability distributions")
     args = parser.parse_args()
 
     print(term.clear)

@@ -2,12 +2,16 @@ from __future__ import print_function
 
 __author__ = 'johannes'
 
-import roslib
-# roslib.load_manifest('joint_dependency')
-import rospy
-from geometry_msgs.msg import WrenchStamped
-from std_msgs.msg import String
-import tf
+try:
+    import roslib
+    roslib.load_manifest('joint_dependency')
+    import rospy
+    from geometry_msgs.msg import WrenchStamped
+    from std_msgs.msg import String
+    import tf
+except ImportError:
+    print("Disable ROS.")
+
 import math
 import sys
 import numpy as np
