@@ -99,9 +99,9 @@ class TestFurniture(unittest.TestCase):
 
     def test_drawer_with_key(self):
         drawer_min = np.random.randint(0, 100)
-        drawer_max = np.random.randint(drawer_min+20, 180)
+        drawer_max = drawer_min + np.random.randint(41, 180-drawer_min)
         handle_min = np.random.randint(0, 100)
-        handle_max = np.random.randint(handle_min+20, 180)
+        handle_max = handle_min + np.random.randint(41, 180-handle_min)
 
         create_drawer_with_key(self.world, 10e-3, [(handle_min, handle_max),
                                                    (drawer_min, drawer_max)])
@@ -129,9 +129,9 @@ class TestFurniture(unittest.TestCase):
 
     def test_create_furniture_drawer_with_key(self):
         drawer_min = np.random.randint(0, 100)
-        drawer_max = np.random.randint(drawer_min+20, 180)
+        drawer_max = drawer_min + np.random.randint(40, 180-drawer_min)
         handle_min = np.random.randint(0, 100)
-        handle_max = np.random.randint(handle_min+20, 180)
+        handle_max = handle_min + np.random.randint(40, 180-handle_min)
 
         create_furniture(Furniture.drawer_key, self.world, 10e-3,
                          [(handle_min, handle_max),
