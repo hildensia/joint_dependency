@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import random
 import multiprocessing
-import Enum
+from enum import Enum
 
 
 class Record(object):
