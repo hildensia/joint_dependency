@@ -4,7 +4,7 @@ __author__ = 'johannes'
 
 try:
     import roslib
-    roslib.load_manifest('joint_dependency')
+    #roslib.load_manifest('joint_dependency')
     import rospy
     from geometry_msgs.msg import WrenchStamped
     from std_msgs.msg import String
