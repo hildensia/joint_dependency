@@ -101,29 +101,34 @@ def get_probability_over_degree(P, qs):
     return probs, count
 
 
-#TODO: fuer real world anpassem
-def update_p_cp(world):
+def update_p_cp(world, use_ros):
     P_cp = []
     pid = multiprocessing.current_process().pid
     for j, joint in enumerate(world.joints):
-        # TODO: this should work regardless of ROS or not
-        # v = Record.records[pid]["v_" + str(j)][0:].as_matrix()
-        # af = Record.records[pid]["applied_force_" + str(j)][0:].as_matrix()
-        #
-        # vn = v[:-1] + af[:-1]
-        # d = np.zeros(v.shape)
-        # d[1:] = abs((vn**2 - v[1:]**2)/(0.1 * vn))
-        # y = np.array(d)
-        # nans, x = nan_helper(d)
-        # d[nans] = np.interp(x(nans), x(~nans), d[~nans])
+        if use_ros:
+            d = Record.records[pid]["applied_force_" + str(j)][0:].as_matrix()
+        else:
+            v = Record.records[pid]["v_" + str(j)][0:].as_matrix()
+            af = Record.records[pid]["applied_force_" + str(j)][0:].as_matrix()
 
-        d = Record.records[pid]["applied_force_" + str(j)][0:].as_matrix()
+            vn = v[:-1] + af[:-1]
+            d = np.zeros(v.shape)
+            d[1:] = abs((vn**2 - v[1:]**2)/(0.1 * vn))
+            y = np.array(d)
+            nans, x = nan_helper(d)
+            d[nans] = np.interp(x(nans), x(~nans), d[~nans])
+
         Q, P, Pcp = bcd.offline_changepoint_detection(
             data=d,
-            prior_func=partial(bcd.const_prior,  l=(len(d)+1)),
-            observation_log_likelihood_function=bcd.gaussian_obs_log_likelihood,
+            prior_func=partial(bcd.const_prior, l=(len(d)+1)),
+            observation_log_likelihood_function=
+            bcd.gaussian_obs_log_likelihood,
             truncate=-50)
-        p_cp, count = get_probability_over_degree(np.exp(Pcp).sum(0),  Record.records[pid]['q_' + str(j)][0:].as_matrix())
+
+        p_cp, count = get_probability_over_degree(
+            np.exp(Pcp).sum(0),
+            Record.records[pid]['q_' + str(j)][0:].as_matrix())
+
         P_cp.append(p_cp)
     return P_cp
 
@@ -183,7 +188,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
             action_machine.run_action(action_pos)
             action_pos[i] = world.joints[i].min_limit
             action_machine.run_action(action_pos)
-        P_cp = update_p_cp(world)
+        P_cp = update_p_cp(world, args.useRos)
         P_same = compute_p_same(P_cp)
 
     for j, joint in enumerate(world.joints):
@@ -359,7 +364,7 @@ if __name__ == '__main__':
     parser.add_argument("-o", "--objective", required=True,
                         help="The objective to optimize for exploration",
                         choices=['random', 'entropy', 'cross_entropy'])
-    parser.add_argument("-c", "--changepoint", type=bool, required=True,
+    parser.add_argument("-c", "--changepoint", action='store_true',
                         help="Should change points used as prior")
     parser.add_argument("-t", "--threads", type=int,
                         default=multiprocessing.cpu_count(),

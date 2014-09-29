@@ -41,7 +41,7 @@ if __name__ == '__main__':
         action_machine.run_action(action_pos)
 
     # The actual data we want to pickle
-    P_cp = update_p_cp(world)
+    P_cp = update_p_cp(world, args.useRos)
     P_same = compute_p_same(P_cp)
 
     date = str(datetime.datetime.now()).replace(" ", "-")
