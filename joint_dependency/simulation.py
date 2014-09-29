@@ -3,7 +3,6 @@ import pandas as pd
 import random
 from enum import Enum
 
-from joint_dependency.recorder import Record
 
 
 def get_state(q, states):
@@ -278,7 +277,7 @@ class MultiLocker(object):
 class ActionMachine(object):
     def __init__(self, world, controller):
         self.world = world
-        self.controllers = controller
+        self.controller = controller
 
     def run_action(self, pos):
         for j, p in enumerate(pos):
