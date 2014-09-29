@@ -130,10 +130,39 @@ class TestFurniture(unittest.TestCase):
     def test_create_furniture_drawer_with_key(self):
         drawer_min = np.random.randint(0, 100)
         drawer_max = drawer_min + np.random.randint(40, 180-drawer_min)
-        handle_min = np.random.randint(0, 100)
-        handle_max = handle_min + np.random.randint(40, 180-handle_min)
+        key_min = np.random.randint(0, 100)
+        key_max = key_min + np.random.randint(40, 180-key_min)
 
         create_furniture(Furniture.drawer_key, self.world, 10e-3,
+                         [(key_min, key_max),
+                          (drawer_min, drawer_max)])
+
+        self.assertEqual(len(self.world.joints), 2)
+        self.assertEqual(self.world.joints[0].min_limit, key_min)
+        self.assertEqual(self.world.joints[0].max_limit, key_max)
+        self.assertEqual(self.world.joints[1].min_limit, drawer_min)
+        self.assertEqual(self.world.joints[1].max_limit, drawer_max)
+
+        for listener in self.world.listeners:
+            if isinstance(listener, MultiLocker):
+                self.assertLess(listener.locks[0][0], listener.locks[0][1])
+                self.assertLess(listener.locks[0][1], listener.locks[1][0])
+                self.assertLess(listener.locks[1][0], listener.locks[1][1])
+                self.assertEqual(listener.locks[0][0], key_min)
+                self.assertEqual(listener.locks[1][1], key_max)
+                self.assertLessEqual(listener.locks[1][0]-listener.locks[0][1],
+                                     20)
+                self.assertGreaterEqual(listener.locks[1][0]-listener.locks[0][1],
+                                        10)
+
+
+    def test_create_furniture_drawer_with_handle(self):
+        drawer_min = np.random.randint(0, 100)
+        drawer_max = drawer_min + np.random.randint(20, 180-drawer_min)
+        handle_min = np.random.randint(0, 100)
+        handle_max = handle_min + np.random.randint(20, 180-handle_min)
+
+        create_furniture(Furniture.drawer_handle, self.world, 10e-3,
                          [(handle_min, handle_max),
                           (drawer_min, drawer_max)])
 
@@ -146,17 +175,38 @@ class TestFurniture(unittest.TestCase):
         for listener in self.world.listeners:
             if isinstance(listener, MultiLocker):
                 self.assertLess(listener.locks[0][0], listener.locks[0][1])
+
+
+    def test_create_furniture_cupboard_with_key(self):
+        cupboard_min = np.random.randint(0, 100)
+        cupboard_max = cupboard_min + np.random.randint(40, 180-cupboard_min)
+        key_min = np.random.randint(0, 100)
+        key_max = key_min + np.random.randint(40, 180-key_min)
+
+        create_furniture(Furniture.cupboard_key, self.world, 10e-3,
+                         [(key_min, key_max),
+                          (cupboard_min, cupboard_max)])
+
+        self.assertEqual(len(self.world.joints), 2)
+        self.assertEqual(self.world.joints[0].min_limit, key_min)
+        self.assertEqual(self.world.joints[0].max_limit, key_max)
+        self.assertEqual(self.world.joints[1].min_limit, cupboard_min)
+        self.assertEqual(self.world.joints[1].max_limit, cupboard_max)
+
+        for listener in self.world.listeners:
+            if isinstance(listener, MultiLocker):
+                self.assertLess(listener.locks[0][0], listener.locks[0][1])
                 self.assertLess(listener.locks[0][1], listener.locks[1][0])
                 self.assertLess(listener.locks[1][0], listener.locks[1][1])
-                self.assertEqual(listener.locks[0][0], handle_min)
-                self.assertEqual(listener.locks[1][1], handle_max)
+                self.assertEqual(listener.locks[0][0], key_min)
+                self.assertEqual(listener.locks[1][1], key_max)
                 self.assertLessEqual(listener.locks[1][0]-listener.locks[0][1],
                                      20)
                 self.assertGreaterEqual(listener.locks[1][0]-listener.locks[0][1],
                                         10)
 
 
-    def test_create_furniture_drawer_with_handle(self):
+    def test_create_furniture_cupboard_with_handle(self):
         drawer_min = np.random.randint(0, 100)
         drawer_max = drawer_min + np.random.randint(20, 180-drawer_min)
         handle_min = np.random.randint(0, 100)
