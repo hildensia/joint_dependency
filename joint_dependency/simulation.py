@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import random
+from enum import Enum
 from joint_dependency.recorder import Record
 
 
@@ -273,10 +274,11 @@ class MultiLocker(object):
             # print("lock")
             self.locked.lock()
 
+
 class ActionMachine(object):
     def __init__(self, world, controller):
         self.world = world
-        self.controller = controller
+        self.controllers = controller
 
     def run_action(self, pos):
         for j, p in enumerate(pos):
@@ -297,6 +299,7 @@ class ActionMachine(object):
             locked_state = 1
 
         return locked_state
+
 
 class Furniture(Enum):
     drawer_key = 0
