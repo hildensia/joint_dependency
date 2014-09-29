@@ -125,7 +125,7 @@ class TestFurniture(unittest.TestCase):
                                         10)
 
     def test_create_furniture_wrong_furniture(self):
-        self.assertRaises(TypeError, create_furniture, (None))
+        self.assertRaises(TypeError, create_furniture, None)
 
     def test_create_furniture_drawer_with_key(self):
         drawer_min = np.random.randint(0, 100)
@@ -154,6 +154,27 @@ class TestFurniture(unittest.TestCase):
                                      20)
                 self.assertGreaterEqual(listener.locks[1][0]-listener.locks[0][1],
                                         10)
+
+
+    def test_create_furniture_drawer_with_handle(self):
+        drawer_min = np.random.randint(0, 100)
+        drawer_max = drawer_min + np.random.randint(20, 180-drawer_min)
+        handle_min = np.random.randint(0, 100)
+        handle_max = handle_min + np.random.randint(20, 180-handle_min)
+
+        create_furniture(Furniture.drawer_handle, self.world, 10e-3,
+                         [(handle_min, handle_max),
+                          (drawer_min, drawer_max)])
+
+        self.assertEqual(len(self.world.joints), 2)
+        self.assertEqual(self.world.joints[0].min_limit, handle_min)
+        self.assertEqual(self.world.joints[0].max_limit, handle_max)
+        self.assertEqual(self.world.joints[1].min_limit, drawer_min)
+        self.assertEqual(self.world.joints[1].max_limit, drawer_max)
+
+        for listener in self.world.listeners:
+            if isinstance(listener, MultiLocker):
+                self.assertLess(listener.locks[0][0], listener.locks[0][1])
 
 
 

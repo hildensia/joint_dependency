@@ -346,8 +346,10 @@ def create_drawer_with_handle(world, noise, limits):
     open_upper = np.random.uniform() > .5
     if open_upper:
         open_d = (limits[0][1] - 20, limits[0][1])
+        locked_d = (limits[0][0], limits[0][1]-20)
     else:
-        open_d = (limits[0][0], limits[0][0] + 20)
+        open_d = (limits[0][0], limits[0][0]+20)
+        locked_d = (limits[0][0]+20, limits[0][1])
 
     # The 'handle'
     states = [open_d[0], open_d[1]]
@@ -360,7 +362,7 @@ def create_drawer_with_handle(world, noise, limits):
     world.add_joint(Joint(states, dampings, limits[1], noise))
 
     MultiLocker(world, locker=world.joints[-2], locked=world.joints[-1],
-                locks=[(limits[0][0], open_d[0]), (open_d[1], limits[0][1])])
+                locks=[locked_d])
 
 
 def create_cupboard_with_key(world, limits, noise):
