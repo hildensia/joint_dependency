@@ -3,7 +3,6 @@ from joint_dependency.ros_adapter import (create_ros_drawer_world,
 from joint_dependency.simulation import (create_world, ActionMachine,
                                          Controller)
 from joint_dependency.experiments import update_p_cp, compute_p_same
-import rospy
 import numpy as np
 import cPickle
 import datetime
@@ -13,15 +12,13 @@ __author__ = 'johannes'
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--with-ros", required=True,
-                        help="Should we use the real robot and ROS?",
-                        type=bool)
+    parser.add_argument("--ros", default=False,
+                        help="Should we use the real robot and ROS?")
     args = parser.parse_args()
 
-    if args['with-ros']:
+    if args.ros:
         world = create_ros_drawer_world()
         action_machine = RosActionMachine(world)
-        rospy.init_node("ft_reader")
     else:
         world = create_world()
         controller = [Controller(world, i)
@@ -31,11 +28,11 @@ if __name__ == '__main__':
 
     jpos = np.array([int(j.get_q()) for j in world.joints])
 
-    for joint in world.joints:
+    for joint_id, joint in enumerate(world.joints):
         action_pos = np.array(jpos)
-        action_pos[joint] = world.joints[joint].max_limit
+        action_pos[joint_id] = joint.max_limit
         action_machine.run_action(action_pos)
-        action_pos[joint] = world.joints[joint].min_limit
+        action_pos[joint_id] = joint.min_limit
         action_machine.run_action(action_pos)
 
     P_cp = update_p_cp(world)

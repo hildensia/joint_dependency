@@ -1,41 +1,9 @@
 import numpy as np
 import pandas as pd
 import random
-import multiprocessing
+from enum import Enum
 
-
-class Record(object):
-    # record = pd.DataFrame()
-    records = {}
-
-    def __init__(self, columns):
-        self.columns = columns
-
-    def __call__(self, f):
-
-        def wrapped_f(*args, **kwargs):
-            data = f(*args, **kwargs)
-
-            if data is None:
-                return data
-
-            _self = args[0]
-            columns = list(self.columns)
-
-            if hasattr(_self, "index"):
-                for i, _ in enumerate(self.columns):
-                    columns[i] += "_" + str(_self.index)
-
-            rec = pd.DataFrame([data], index=_self.world.get_index(),
-                               columns=columns)
-
-            pid = multiprocessing.current_process().pid
-            old_record = Record.records.get(pid, pd.DataFrame())
-            Record.records[pid] = old_record.combine_first(rec)
-
-            return data
-
-        return wrapped_f
+from joint_dependency.recorder import Record
 
 
 def get_state(q, states):
@@ -310,7 +278,7 @@ class MultiLocker(object):
 class ActionMachine(object):
     def __init__(self, world, controller):
         self.world = world
-        self.controller = controller
+        self.controllers = controller
 
     def run_action(self, pos):
         for j, p in enumerate(pos):
