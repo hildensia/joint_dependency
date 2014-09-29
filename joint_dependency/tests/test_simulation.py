@@ -12,7 +12,7 @@ class TestMultiLocker(unittest.TestCase):
 
         open_at = np.random.randint(180)
         self.open_d = (max(open_at - 10, 0),
-                  max(open_at + 10, 180))
+                       max(open_at + 10, 180))
         # The 'handle'
         states = [self.open_d[0], self.open_d[1]]
         dampings = [15, 200, 15]
@@ -27,7 +27,6 @@ class TestMultiLocker(unittest.TestCase):
                                   locked=self.world.joints[1],
                                   locks=[(0, self.open_d[0]),
                                          (self.open_d[1], 180)])
-
 
     def test_locker_locks(self):
         self.world.joints[0].q = 0
@@ -121,8 +120,8 @@ class TestFurniture(unittest.TestCase):
                 self.assertLess(listener.locks[1][0], listener.locks[1][1])
                 self.assertLessEqual(listener.locks[1][0]-listener.locks[0][1],
                                      20)
-                self.assertGreaterEqual(listener.locks[1][0]-listener.locks[0][1],
-                                        10)
+                self.assertGreaterEqual((listener.locks[1][0] -
+                                         listener.locks[0][1]), 10)
 
     def test_create_furniture_wrong_furniture(self):
         self.assertRaises(TypeError, create_furniture, None)
@@ -152,9 +151,8 @@ class TestFurniture(unittest.TestCase):
                 self.assertEqual(listener.locks[1][1], key_max)
                 self.assertLessEqual(listener.locks[1][0]-listener.locks[0][1],
                                      20)
-                self.assertGreaterEqual(listener.locks[1][0]-listener.locks[0][1],
-                                        10)
-
+                self.assertGreaterEqual((listener.locks[1][0] -
+                                         listener.locks[0][1]), 10)
 
     def test_create_furniture_drawer_with_handle(self):
         drawer_min = np.random.randint(0, 100)
@@ -175,7 +173,6 @@ class TestFurniture(unittest.TestCase):
         for listener in self.world.listeners:
             if isinstance(listener, MultiLocker):
                 self.assertLess(listener.locks[0][0], listener.locks[0][1])
-
 
     def test_create_furniture_cupboard_with_key(self):
         cupboard_min = np.random.randint(0, 100)
@@ -202,9 +199,8 @@ class TestFurniture(unittest.TestCase):
                 self.assertEqual(listener.locks[1][1], key_max)
                 self.assertLessEqual(listener.locks[1][0]-listener.locks[0][1],
                                      20)
-                self.assertGreaterEqual(listener.locks[1][0]-listener.locks[0][1],
-                                        10)
-
+                self.assertGreaterEqual((listener.locks[1][0] -
+                                         listener.locks[0][1]), 10)
 
     def test_create_furniture_cupboard_with_handle(self):
         drawer_min = np.random.randint(0, 100)
@@ -225,6 +221,3 @@ class TestFurniture(unittest.TestCase):
         for listener in self.world.listeners:
             if isinstance(listener, MultiLocker):
                 self.assertLess(listener.locks[0][0], listener.locks[0][1])
-
-
-
