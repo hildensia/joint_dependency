@@ -321,13 +321,13 @@ def create_furniture(furniture, *args, **kwargs):
     elif furniture == Furniture.window:
         return create_window(*args, **kwargs)
     else:
-        return []
+        raise TypeError("{} is not a valid furniture.".format(furniture))
 
 
 def create_drawer_with_key(world, noise, limits):
-    open_at = np.random.randint(*limits[0])
-    open_d = (max(open_at - 10, limits[0][0]),
-              min(open_at + 10, limits[0][1]))
+    open_at = np.random.randint(limits[0][0]+20, limits[0][1]-20)
+    open_d = (open_at - 10, open_at + 10)
+
     # The 'handle'
     states = [open_d[0], open_d[1]]
     dampings = [15, 200, 15]
