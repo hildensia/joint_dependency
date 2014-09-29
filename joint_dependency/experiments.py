@@ -259,12 +259,27 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     jpos = np.array([int(j.get_q()) for j in world.joints])
     locked_states = [None] * len(world.joints)
 
+    explored_joints = []
+
     for j, joint in enumerate(world.joints):
         locked_states[j] = action_machine.check_state(j)
+
+        if locked_states[j] == 0:
+            explored_joints.append(j)
+            action_pos = np.array(jpos)
+            action_pos[j] = joint.max_limit
+            action_machine.run_action(action_pos)
+            action_pos[j] = joint.min_limit
+            action_machine.run_action(action_pos)
+
 
         # add the experiences
         new_experience = {'data': jpos, 'value': locked_states[j]}
         experiences[j].append(new_experience)
+
+    if use_change_points:
+        P_cp = update_p_cp(world)
+        P_same = compute_p_same(P_cp)
 
     # calculate the model posterior in the beginning
     posteriors = calc_posteriors(world, experiences, P_same, alpha_prior,
@@ -313,10 +328,18 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         new_experience = {'data': jpos, 'value': locked_states[joint]}
         experiences[joint].append(new_experience)
 
+        if locked_states[joint] == 0 and joint not in explored_joints:
+            explored_joints.append(joint)
+            action_pos = np.array(jpos)
+            action_pos[joint] = world.joints[joint].max_limit
+            action_machine.run_action(action_pos)
+            action_pos[joint] = world.joints[joint].min_limit
+            action_machine.run_action(action_pos)
+            if use_change_points:
+                P_cp = update_p_cp(world)
+                P_same = compute_p_same(P_cp)
+
         # if we want to consider a change point detection, run it
-        if use_change_points:
-            P_cp = update_p_cp(world)
-            P_same = compute_p_same(P_cp)
 
         # calculate model posterior
         posteriors = calc_posteriors(world, experiences, P_same, alpha_prior,
