@@ -1,6 +1,7 @@
 from __future__ import division
 
-from joint_dependency.simulation import (create_world,  Controller)
+from joint_dependency.simulation import (create_world,  Controller,
+                                         ActionMachine)
 from joint_dependency.recorder import Record
 from joint_dependency.inference import (model_posterior, same_segment,
                                         exp_cross_entropy, random_objective,
@@ -166,13 +167,24 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     # init phase
     # initialize the probability distributions
     P_cp, experiences = init(world)
-    P_same = compute_p_same(P_cp)
 
     # get locking state of all joints by actuating them once
     jpos = np.array([int(j.get_q()) for j in world.joints])
     locked_states = [None] * len(world.joints)
 
-    explored_joints = []
+
+    if args.prob_file is not None:
+        with open(args.prob_file, "r") as _file:
+            (P_cp, P_same) = cPickle.load(_file)
+    else:
+        for i, joint in enumerate(world.joints):
+            action_pos = np.array(jpos)
+            action_pos[i] = world.joints[i].max_limit
+            action_machine.run_action(action_pos)
+            action_pos[i] = world.joints[i].min_limit
+            action_machine.run_action(action_pos)
+        P_cp = update_p_cp(world)
+        P_same = compute_p_same(P_cp)
 
     for j, joint in enumerate(world.joints):
         locked_states[j] = action_machine.check_state(j)
@@ -180,16 +192,6 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         # add the experiences
         new_experience = {'data': jpos, 'value': locked_states[j]}
         experiences[j].append(new_experience)
-
-    if args['prob-file'] is not None:
-        with open(args['prob-file'], "r") as _file:
-            (P_cp, P_same) = cPickle.load(_file)
-        P_cp = update_p_cp(world)
-        P_same = compute_p_same(P_cp)
-
-    # calculate the model posterior in the beginning
-    posteriors = calc_posteriors(world, experiences, P_same, alpha_prior,
-                                 model_prior)
 
     # perform actions as long the entropy of all model distributions is still
     # big
@@ -203,7 +205,9 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
                 'Objective': objective_fnc.__name__,
                 'World': world,
                 'ModelPrior': model_prior,
-                'AlphaPrior': alpha_prior}
+                'AlphaPrior': alpha_prior,
+                'P_cp': P_cp,
+                'P_same': P_same}
 
     for idx in range(N_actions):
 
@@ -234,19 +238,6 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         new_experience = {'data': jpos, 'value': locked_states[joint]}
         experiences[joint].append(new_experience)
 
-        if locked_states[joint] == 0 and joint not in explored_joints:
-            explored_joints.append(joint)
-            action_pos = np.array(jpos)
-            action_pos[joint] = world.joints[joint].max_limit
-            action_machine.run_action(action_pos)
-            action_pos[joint] = world.joints[joint].min_limit
-            action_machine.run_action(action_pos)
-            if use_change_points:
-                P_cp = update_p_cp(world)
-                P_same = compute_p_same(P_cp)
-
-        # if we want to consider a change point detection, run it
-
         # calculate model posterior
         posteriors = calc_posteriors(world, experiences, P_same, alpha_prior,
                                      model_prior)
@@ -261,11 +252,10 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         with open(filename, "w") as _file:
             cPickle.dump((data, metadata), _file)
 
-
     progress.finish()
     return data, metadata
 
-# TODO fuer ros anpassen
+
 def run_experiment(argst):
     args, location = argst
 
@@ -304,10 +294,15 @@ def run_experiment(argst):
     elif args.objective == "cross_entropy":
         objective = exp_cross_entropy
 
-    data, metadata = dependency_learning(args.queries, args.samples, world,
-                                         objective, args.changepoint,
-                                         alpha_prior, model_prior, controllers,
-                                         location)
+    data, metadata = dependency_learning(N_actions=args.queries,
+                                         N_samples=args.samples, world=world,
+                                         objective_fnc=objective,
+                                         use_change_points=args.changepoint,
+                                         alpha_prior=alpha_prior,
+                                         model_prior=model_prior,
+                                         action_machine=
+                                         ActionMachine(world, controllers),
+                                         location=location)
 
     filename = "data_" + str(metadata["Date"]).replace(" ", "-") + (".pkl")
     with open(filename, "wb") as _file:
@@ -378,6 +373,9 @@ if __name__ == '__main__':
                         help="Number of runs")
     parser.add_argument("-p", "--prob-file", type=str, default=None,
                         help="The file with the probability distributions")
+    parser.add_argument("--useRos", action='store_true',
+                        help="Enable ROS/real robot usage.")
+
     args = parser.parse_args()
 
     print(term.clear)
@@ -388,6 +386,9 @@ if __name__ == '__main__':
     # pool.close()
     # pool.join()
 
-    run_ros_experiment((args, (0, 0)))
+    if args.useRos:
+        run_ros_experiment((args, (0, 0)))
+    else:
+        run_experiment((args, (0, 0)))
 
     print(term.clear)
