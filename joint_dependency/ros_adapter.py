@@ -3,7 +3,7 @@ from __future__ import print_function
 __author__ = 'johannes'
 
 import roslib
-roslib.load_manifest('joint_dependency')
+# roslib.load_manifest('joint_dependency')
 import rospy
 from geometry_msgs.msg import WrenchStamped
 from std_msgs.msg import String
