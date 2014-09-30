@@ -388,15 +388,14 @@ if __name__ == '__main__':
 
     print(term.clear)
 
-    # pool = multiprocessing.Pool(args.threads, maxtasksperchild=1)
-    # pool.map(run_experiment, zip([args]*args.runs,
-    #                              zip([0]*args.runs, range(args.runs))))
-    # pool.close()
-    # pool.join()
 
     if args.useRos:
         run_ros_experiment((args, (0, 0)))
     else:
-        run_experiment((args, (0, 0)))
+        pool = multiprocessing.Pool(args.threads, maxtasksperchild=1)
+        pool.map(run_experiment, zip([args]*args.runs,
+                                     zip([0]*args.runs, range(args.runs))))
+        pool.close()
+        pool.join()
 
     print(term.clear)
