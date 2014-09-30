@@ -178,17 +178,20 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     locked_states = [None] * len(world.joints)
 
 
-    if args.prob_file is not None:
-        with open(args.prob_file, "r") as _file:
-            (P_cp, P_same) = cPickle.load(_file)
+    if use_change_points:
+        if args.prob_file is not None:
+            with open(args.prob_file, "r") as _file:
+                (P_cp, P_same) = cPickle.load(_file)
+        else:
+            for i, joint in enumerate(world.joints):
+                action_pos = np.array(jpos)
+                action_pos[i] = world.joints[i].max_limit
+                action_machine.run_action(action_pos)
+                action_pos[i] = world.joints[i].min_limit
+                action_machine.run_action(action_pos)
+            P_cp = update_p_cp(world, args.useRos)
+            P_same = compute_p_same(P_cp)
     else:
-        for i, joint in enumerate(world.joints):
-            action_pos = np.array(jpos)
-            action_pos[i] = world.joints[i].max_limit
-            action_machine.run_action(action_pos)
-            action_pos[i] = world.joints[i].min_limit
-            action_machine.run_action(action_pos)
-        P_cp = update_p_cp(world, args.useRos)
         P_same = compute_p_same(P_cp)
 
     for j, joint in enumerate(world.joints):
