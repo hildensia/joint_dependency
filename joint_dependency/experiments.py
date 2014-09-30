@@ -106,7 +106,13 @@ def update_p_cp(world, use_ros):
     pid = multiprocessing.current_process().pid
     for j, joint in enumerate(world.joints):
         if use_ros:
-            d = Record.records[pid]["applied_force_" + str(j)][0:].as_matrix()
+            q = Record.records[pid]["q_" + str(j)].as_matrix()
+            af = Record.records[pid]["applied_force_" + str(j)][0:].as_matrix()
+            v = q[1:] - q[0:-1]  # we can't measure the velocity directly
+
+            vn = v[:] + af[1:]
+            d = np.zeros((v.shape[0] + 1,))
+            d[1:] = abs((vn**2 - v[:]**2)/(0.1 * vn))
         else:
             v = Record.records[pid]["v_" + str(j)][0:].as_matrix()
             af = Record.records[pid]["applied_force_" + str(j)][0:].as_matrix()
@@ -114,9 +120,9 @@ def update_p_cp(world, use_ros):
             vn = v[:-1] + af[:-1]
             d = np.zeros(v.shape)
             d[1:] = abs((vn**2 - v[1:]**2)/(0.1 * vn))
-            y = np.array(d)
-            nans, x = nan_helper(d)
-            d[nans] = np.interp(x(nans), x(~nans), d[~nans])
+
+        nans, x = nan_helper(d)
+        d[nans] = np.interp(x(nans), x(~nans), d[~nans])
 
         Q, P, Pcp = bcd.offline_changepoint_detection(
             data=d,
@@ -181,7 +187,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     if use_change_points:
         if args.prob_file is not None:
             with open(args.prob_file, "r") as _file:
-                (P_cp, P_same) = cPickle.load(_file)
+                (_, P_cp, P_same) = cPickle.load(_file)
         else:
             for i, joint in enumerate(world.joints):
                 action_pos = np.array(jpos)
