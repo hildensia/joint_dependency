@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 
 from joint_dependency.simulation import (World, Joint, MultiLocker, Furniture,
-                                         create_furniture,
+                                         create_world, create_furniture,
                                          create_drawer_with_key)
 
 
@@ -221,3 +221,7 @@ class TestFurniture(unittest.TestCase):
         for listener in self.world.listeners:
             if isinstance(listener, MultiLocker):
                 self.assertLess(listener.locks[0][0], listener.locks[0][1])
+
+    def test_create_world(self):
+        world = create_world(3)
+        self.assertEqual(len(world.joints), 6)
