@@ -146,7 +146,9 @@ class RosActionMachine(object):
         raw_input("Press Key when done.")
 
     def check_state(self, joint):
-        locking_state = input("What is the locking state of the {}?".format("drawer" if joint==0 else "key"))
+        locking_state = input(
+            "What is the locking state of the {}? (0=open, 1=locked)".
+            format("drawer" if joint==0 else "key"))
         return locking_state
 
 
