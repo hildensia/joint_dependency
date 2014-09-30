@@ -55,7 +55,7 @@ class RosJoint(object):
 
 
         if self.name == 'drawer':
-            return int(trans[0] * 100 - self.offset)
+            return -int(trans[0] * 100 - self.offset)
         else:
             return int(tf.transformations.euler_from_quaternion(rot)[0] *
                     180./math.pi - self.offset) % 360 - 180
