@@ -8,6 +8,8 @@ from joint_dependency.ros_adapter import (create_ros_drawer_world,
 from joint_dependency.simulation import (create_world, ActionMachine,
                                          Controller)
 from joint_dependency.experiments import update_p_cp, compute_p_same
+from joint_dependency.recorder import Record
+import multiprocessing
 import numpy as np
 import cPickle
 import datetime
@@ -33,18 +35,23 @@ if __name__ == '__main__':
 
     jpos = np.array([int(j.get_q()) for j in world.joints])
 
-    for i, joint in enumerate(world.joints):
-        action_pos = np.array(jpos)
-        action_pos[i] = world.joints[i].max_limit
-        action_machine.run_action(action_pos)
-        action_pos[i] = world.joints[i].min_limit
-        action_machine.run_action(action_pos)
+    try:
+        for i, joint in enumerate(world.joints):
+            action_pos = np.array(jpos)
+            action_pos[i] = world.joints[i].max_limit
+            action_machine.run_action(action_pos)
+            action_pos[i] = world.joints[i].min_limit
+            action_machine.run_action(action_pos)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        # The actual data we want to pickle
+        P_cp = update_p_cp(world, args.useRos)
+        P_same = compute_p_same(P_cp)
 
-    # The actual data we want to pickle
-    P_cp = update_p_cp(world, args.useRos)
-    P_same = compute_p_same(P_cp)
+        date = str(datetime.datetime.now()).replace(" ", "-")
 
-    date = str(datetime.datetime.now()).replace(" ", "-")
+        pid = multiprocessing.current_process().pid
 
-    with open("cp_profile_{}.pkl".format(date), "w") as _file:
-        cPickle.dump((P_cp, P_same), _file)
+        with open("cp_profile_{}.pkl".format(date), "w") as _file:
+            cPickle.dump((Record.records[pid], P_cp, P_same), _file)
