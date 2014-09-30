@@ -306,7 +306,7 @@ class Furniture(Enum):
     drawer_handle = 1
     cupboard_key = 2
     cupboard_handle = 3
-    window = 4
+    # window = 4
 
 
 def create_furniture(furniture, *args, **kwargs):
@@ -318,8 +318,8 @@ def create_furniture(furniture, *args, **kwargs):
         return create_cupboard_with_key(*args, **kwargs)
     elif furniture == Furniture.cupboard_handle:
         return create_cupboard_with_handle(*args, **kwargs)
-    elif furniture == Furniture.window:
-        return create_window(*args, **kwargs)
+    # elif furniture == Furniture.window:
+    #     return create_window(*args, **kwargs)
     else:
         raise TypeError("{} is not a valid furniture.".format(furniture))
 
@@ -410,10 +410,10 @@ def create_window(limits, open, tilt):
     pass
 
 
-def create_world():
+def create_world(n=3):
     noise = {'q': 10e-6, 'vel': 10e-6}
     world = World([])
-    for _ in range(3):
+    for _ in range(n):
         next_furniture = random.choice(list(Furniture))
         create_furniture(next_furniture, world, noise, [[0, 180], [0, 120]])
 
