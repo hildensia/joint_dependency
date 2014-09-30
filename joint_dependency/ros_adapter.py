@@ -36,7 +36,7 @@ class RosJoint(object):
         self.min_limit = limits[0]
         self.max_limit = limits[1]
         self.offset = 0
-        self.offset = self.get_q()
+        self.offset = -self.get_q() if self.name == "drawer" else self.get_q()
 
     def get_q(self, time=None):
         if time is None:
