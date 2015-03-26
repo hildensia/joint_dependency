@@ -143,7 +143,8 @@ def create_alpha(current_pos, experiences, joint_idx, p_same):
     return alpha
 
 
-def prob_locked(experiences, joint_pos, p_same, alpha_prior, model_prior):
+def prob_locked(experiences, joint_pos, p_same, alpha_prior, model_prior,
+                model_post=None):
     """
     Computes the Dirichlet distribution over the possible joint state
     distributions.
@@ -158,10 +159,13 @@ def prob_locked(experiences, joint_pos, p_same, alpha_prior, model_prior):
              different locking state distributions
     """
     alpha = np.array(alpha_prior)
-    Pind = model_posterior(experiences, p_same, alpha_prior, model_prior)
+    if model_post is None:
+        model_post = model_posterior(experiences, p_same, alpha_prior,
+                                     model_prior)
     for joint_idx, pos in enumerate(joint_pos):
-        alpha += Pind[joint_idx] * create_alpha(pos,  experiences,
-                                                joint_idx, p_same[joint_idx])
+        alpha += model_post[joint_idx] * create_alpha(pos,  experiences,
+                                                      joint_idx,
+                                                      p_same[joint_idx])
     d = dirichlet(alpha)
     return d
 
