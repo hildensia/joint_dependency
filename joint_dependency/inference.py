@@ -175,7 +175,7 @@ def random_objective(exp, joint_pos, p_same, alpha_prior, model_prior):
 
 
 def exp_cross_entropy(experiences, joint_pos, p_same, alpha_prior,
-                      model_prior):
+                      model_prior, model_post=None):
     """
     Compute the expected cross entropy between the current and the augmented
     model posterior, if we would make the next experience at joint_pos.
@@ -191,9 +191,13 @@ def exp_cross_entropy(experiences, joint_pos, p_same, alpha_prior,
     """
     ce = 0.
 
+    if model_post is None:
+        model_post = model_posterior(experiences, p_same, alpha_prior,
+                                     model_prior)
+
     output_likelihood = prob_locked(experiences, joint_pos, p_same,
-                                    alpha_prior, model_prior)
-    model_post = model_posterior(experiences, p_same, alpha_prior, model_prior)
+                                    alpha_prior, model_prior,
+                                    model_post=model_post)
 
     for i, prob in enumerate(output_likelihood.mean()):
         exp = {'data': joint_pos, 'value': i}
