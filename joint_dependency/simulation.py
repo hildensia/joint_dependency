@@ -1,3 +1,4 @@
+from __future__ import division
 import numpy as np
 import pandas as pd
 import random
@@ -57,6 +58,7 @@ class Joint(object):
             return [self.q, self.vel, self.locked, 0]
 
         self.q += self.vel * dt
+        vel = self.vel * dt
 
         change_direction = -1
         if (self.max_limit is not None) and (self.q > self.max_limit):
@@ -406,8 +408,38 @@ def create_cupboard_with_handle(world, noise, limits):
                 locks=[locked_d])
 
 
-def create_window(limits, open, tilt):
-    pass
+def create_window(world, noise, limits):
+    tilt_at = (limits[0][0]+limits[0][1])/2
+    tilt_d = [(limits[0][0], tilt_at - 10), (limits[0][1], tilt_at + 10)]
+
+    open_upper = np.random.uniform() > .5
+    if open_upper:
+        open_d = (limits[0][1] - 20, limits[0][1])
+        locked_d = (limits[0][0], limits[0][1]-20)
+    else:
+        open_d = (limits[0][0], limits[0][0]+20)
+        locked_d = (limits[0][0]+20, limits[0][1])
+
+    # The 'handle'
+    states = [limits[0][0], tilt_d[0][1], tilt_d[1][0], limits[0][1]]
+    dampings = [15, 200, 15, 200, 15]
+    world.add_joint(Joint(states, dampings, limits[0], noise))
+
+    # The 'tilted window'
+    states = [limits[1][1]]
+    dampings = [15, 15]
+    world.add_joint(Joint(states, dampings, limits[1], noise))
+
+    # The 'open window'
+    states = [limits[2][1]]
+    dampings = [15, 15]
+    world.add_joint(Joint(states, dampings, limits[2], noise))
+
+    MultiLocker(world, locker=world.joints[-3], locked=world.joints[-2],
+                locks=tilt_d)
+
+    MultiLocker(world, locker=world.joints[-3], locked=world.joints[-1],
+                locks=locked_d)
 
 
 def create_world(n=3):

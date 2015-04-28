@@ -132,8 +132,8 @@ def update_p_cp(world, use_ros):
             truncate=-50)
 
         p_cp, count = get_probability_over_degree(
-            np.exp(Pcp).sum(0),
-            Record.records[pid]['q_' + str(j)][0:].as_matrix())
+            np.exp(Pcp).sum(0)[:1],
+            Record.records[pid]['q_' + str(j)][-1:].as_matrix())
 
         P_cp.append(p_cp)
     return P_cp

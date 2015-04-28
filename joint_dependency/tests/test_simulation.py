@@ -225,3 +225,28 @@ class TestFurniture(unittest.TestCase):
     def test_create_world(self):
         world = create_world(3)
         self.assertEqual(len(world.joints), 6)
+
+    def test_create_window(self):
+        drawer_min = np.random.randint(0, 100)
+        drawer_max = drawer_min + np.random.randint(20, 180-drawer_min)
+        handle_min = np.random.randint(0, 100)
+        handle_max = handle_min + np.random.randint(20, 180-handle_min)
+        tilt_min = np.random.randint(0, 100)
+        tilt_max = tilt_min + np.random.randint(20, 180-tilt_min)
+
+        create_furniture(Furniture.window, self.world, 10e-3,
+                         [(handle_min, handle_max),
+                          (tilt_min, tilt_max)
+                          (drawer_min, drawer_max)])
+
+        self.assertEqual(len(self.world.joints), 2)
+        self.assertEqual(self.world.joints[0].min_limit, handle_min)
+        self.assertEqual(self.world.joints[0].max_limit, handle_max)
+        self.assertEqual(self.world.joints[1].min_limit, drawer_min)
+        self.assertEqual(self.world.joints[1].max_limit, drawer_max)
+
+        for listener in self.world.listeners:
+            if isinstance(listener, MultiLocker):
+                self.assertLess(listener.locks[0][0], listener.locks[0][1])
+                self.assertLess(listener.locks[0][1], listener.locks[1][0])
+                self.assertLess(listener.locks[1][0], listener.locks[1][1])
