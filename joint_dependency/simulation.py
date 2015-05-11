@@ -278,21 +278,22 @@ class MultiLocker(object):
 
 
 class ActionMachine(object):
-    def __init__(self, world, controller):
+    def __init__(self, world, controller, tau):
         self.world = world
         self.controllers = controller
+        self.tau = tau
 
     def run_action(self, pos):
         for j, p in enumerate(pos):
             self.controllers[j].move_to(p)
             while not self.controllers[j].is_done():
-                self.world.step(.1)
+                self.world.step(self.tau)
 
     def check_state(self, joint):
         old_pos = self.world.joints[joint].q
         self.controllers[joint].apply_force(1, 10)
         for i in range(10):
-            self.world.step(.1)
+            self.world.step(self.tau)
         new_pos = self.world.joints[joint].q
 
         if abs(old_pos - new_pos) > 10e-3:
