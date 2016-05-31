@@ -3,12 +3,14 @@
 from setuptools import setup
 from Cython.Build import cythonize
 import joint_dependency
+import numpy
 
 setup(
     name='joint_dependency',
     version=joint_dependency.__version__,
     description='Inference about the dependency structure of joints',
     ext_modules=cythonize("joint_dependency/inference_cy.pyx"),
+    include_dirs=[numpy.get_include()],
     author='Johannes Kulick',
     author_email='johannes.kulick@ipvs.uni-stuttgart.de',
     url='http://github.com/hildensia/joint_dependency',
