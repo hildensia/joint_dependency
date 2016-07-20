@@ -270,6 +270,29 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     return data, metadata
 
 
+
+
+def build_model_prior_simple(n, independent_prior):
+    
+    # the model prior is proportional to 1/distance between the joints
+    model_prior = np.array([[0 if x == y
+                             else independent_prior if x == n
+                             else 1/abs(x-y)
+                             for x in range(n+1)]
+                            for y in range(n)])
+
+    # normalize
+    model_prior[:, :-1] = ((model_prior.T[:-1, :] /
+                            np.sum(model_prior[:, :-1], 1)).T *
+                           (1-independent_prior))
+
+                           
+    return model_prior
+
+def build_model_prior_3d(n, independent_prior):
+    model_prior = np.array([]_
+    return model_prior
+
 def run_experiment(argst):
     args, location = argst
 
@@ -290,16 +313,11 @@ def run_experiment(argst):
     independent_prior = .7
 
     # the model prior is proportional to 1/distance between the joints
-    model_prior = np.array([[0 if x == y
-                             else independent_prior if x == n
-                             else 1/abs(x-y)
-                             for x in range(n+1)]
-                            for y in range(n)])
+    if args.useJoint3d:
+        model_prior = build_model_prior_3d(n, independent_prior)
+    else:    
+        model_prior = build_model_prior_simple(n, independent_prior)
 
-    # normalize
-    model_prior[:, :-1] = ((model_prior.T[:-1, :] /
-                            np.sum(model_prior[:, :-1], 1)).T *
-                           (1-independent_prior))
 
     if args.objective == "random":
         objective = random_objective
@@ -321,7 +339,7 @@ def run_experiment(argst):
     filename = "data_" + str(metadata["Date"]).replace(" ", "-") + (".pkl")
     with open(filename, "wb") as _file:
         cPickle.dump((data, metadata), _file)
-
+    
 
 def run_ros_experiment(argst):
     args, location = argst
@@ -340,16 +358,10 @@ def run_ros_experiment(argst):
     independent_prior = .7
 
     # the model prior is proportional to 1/distance between the joints
-    model_prior = np.array([[0 if x == y
-                             else independent_prior if x == n
-                             else 1/abs(x-y)
-                             for x in range(n+1)]
-                            for y in range(n)])
-
-    # normalize
-    model_prior[:, :-1] = ((model_prior.T[:-1, :] /
-                            np.sum(model_prior[:, :-1], 1)).T *
-                           (1-independent_prior))
+    if args.useJoint3d:
+        model_prior = build_model_prior_3d(n, independent_prior)
+    else:    
+        model_prior = build_model_prior_simple(n, independent_prior)
 
     if args.objective == "random":
         objective = random_objective
@@ -389,6 +401,8 @@ if __name__ == '__main__':
                         help="The file with the probability distributions")
     parser.add_argument("--useRos", action='store_true',
                         help="Enable ROS/real robot usage.")
+    parser.add_argument("--useJoint3d", action='store_true',
+                        help="Don't assume a linear sequence of joints but 3d positions.")
 
     args = parser.parse_args()
 
