@@ -1,6 +1,7 @@
 from __future__ import division
 
-from joint_dependency.simulation import (create_world,  Controller,
+from joint_dependency.simulation import (create_world,  create_lockbox,
+                                         Controller,
                                          ActionMachine)
 from joint_dependency.recorder import Record
 from joint_dependency.inference import (model_posterior, same_segment,
@@ -276,7 +277,8 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
 
 
-def build_model_prior_simple(n, independent_prior):
+def build_model_prior_simple(world, independent_prior):
+    n = len(world.joints)
     
     # the model prior is proportional to 1/distance between the joints
     model_prior = np.array([[0 if x == y
@@ -293,8 +295,21 @@ def build_model_prior_simple(n, independent_prior):
                            
     return model_prior
 
-def build_model_prior_3d(n, independent_prior):
-    model_prior = np.array([]_
+def build_model_prior_3d(world, independent_prior):
+    j = world.joints
+    n = len(j)
+    
+    model_prior = np.array([[ 0 if x == y
+        else independent_prior if x == n
+        else 1/np.linalg.norm(
+            np.asarray(j[x].position)-np.asarray(j[y].position)
+        )
+        for x in range(n+1)]
+        for y in range(n)])
+    # normalize
+    model_prior[:, :-1] = ((model_prior.T[:-1, :] /
+                            np.sum(model_prior[:, :-1], 1)).T *
+                           (1-independent_prior))            
     return model_prior
 
 def run_experiment(argst):
@@ -306,21 +321,20 @@ def run_experiment(argst):
     bcd.offline_changepoint_detection.data = None
     Record.records[pid] = pd.DataFrame()
 
-    world = create_world()
+    world = create_lockbox(use_joint_positions=args.useJoint3d)
     controllers = []
     for j, _ in enumerate(world.joints):
         controllers.append(Controller(world, j))
 
     alpha_prior = np.array([.1, .1])
 
-    n = len(world.joints)
     independent_prior = .7
 
     # the model prior is proportional to 1/distance between the joints
     if args.useJoint3d:
-        model_prior = build_model_prior_3d(n, independent_prior)
+        model_prior = build_model_prior_3d(world, independent_prior)
     else:    
-        model_prior = build_model_prior_simple(n, independent_prior)
+        model_prior = build_model_prior_simple(world, independent_prior)
 
 
     if args.objective == "random":
