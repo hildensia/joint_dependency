@@ -451,3 +451,45 @@ def create_world(n=3):
         create_furniture(next_furniture, world, noise, [[0, 180], [0, 120]])
 
     return world
+
+def create_lockbox(num_of_joints=5, noise=None):
+    if noise is None:
+        noise = {'q': 10e-6, 'vel': 10e-6}
+
+    world = World([])
+
+    #  master | slave | open | closed
+    # --------+-------+------+--------
+    #    0    |   1   | 160+ |  160-
+    #    1    |   2   | 160+ |  160-
+    #    2    |   3   | 160+ |  160-
+    #    3    |   4   | 160+ |  160-
+
+    limits = (0, 180)
+
+    for i in range(num_of_joints):
+        dampings = [15, 200, 15]
+
+        m = random.randint(10, 170)
+        if i > 0:
+            locks = [lower, upper]
+
+        lower = (0, m - 10)
+        upper = (m + 10, 180)
+
+        world.add_joint(Joint([lower[1], upper[0]], dampings,
+                                   limits=limits, noise=noise))
+        if i > 0:
+            MultiLocker(world, locker=world.joints[i-1],
+                        locked=world.joints[i], locks=locks)
+
+        print("Joint {} opens at {} - {}".format(i, lower[1], upper[0]))
+    # for i in range(2, 5):
+    #     MultiLocker(self.world, locker=self.world.joints[i-1],
+    #                 locked=self.world.joints[i], locks=[closed])
+
+    # controllers = [Controller(world, j)
+    #                for j, _ in enumerate(world.joints)]
+    # action_machine = ActionMachine(world, controllers, tau)
+
+    return world
