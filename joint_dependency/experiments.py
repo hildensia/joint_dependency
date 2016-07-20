@@ -163,19 +163,20 @@ def nan_helper(y):
 def calc_posteriors(world, experiences, P_same, alpha_prior, model_prior):
     posteriors = []
     for i, joint in enumerate(world.joints):
-        posteriors.append(model_posterior(experiences[i], P_same, alpha_prior,
-                                          model_prior[i]))
+        posteriors.append(model_posterior(experiences[i], np.asarray(P_same),
+                                          alpha_prior,
+                                          np.asarray(model_prior[i])))
     return posteriors
 
 
 def dependency_learning(N_actions, N_samples, world, objective_fnc,
                         use_change_points, alpha_prior, model_prior,
                         action_machine, location):
-    writer = Writer(location)
+    #writer = Writer(location)
     widgets = [ Bar(), Percentage(),
                 " (Run #{}, PID {})".format(location[1],
                                             multiprocessing.current_process().pid)]
-    progress = ProgressBar(maxval=N_actions+2, fd=writer,
+    progress = ProgressBar(maxval=N_actions+2, #fd=writer,
                            widgets=widgets).start()
     progress.update(0)
     # init phase
@@ -401,11 +402,11 @@ if __name__ == '__main__':
     if args.useRos:
         run_ros_experiment((args, (0, 0)))
     else:
-        pool = multiprocessing.Pool(args.threads, maxtasksperchild=1)
-        arguments = list(zip([args]*args.runs, list(zip([0]*args.runs, range(args.runs)))))
-        print(arguments)
-        pool.map(run_experiment, arguments)
-        pool.close()
-        pool.join()
+        # pool = multiprocessing.Pool(1, maxtasksperchild=1)
+        # arguments = list(zip([args]*args.runs, list(zip([0]*args.runs, range(args.runs)))))
+        # pool.map(run_experiment, arguments)
+        # pool.close()
+        # pool.join()
+        run_experiment((args, (0,0)))
 
     print(term.clear)
