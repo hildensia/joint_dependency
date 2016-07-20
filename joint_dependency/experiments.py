@@ -219,7 +219,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
     progress.update(1)
 
-    metadata = {'ChangePointDetection': use_change_points,
+        metadata = {'ChangePointDetection': use_change_points,
                 'Date': datetime.datetime.now(),
                 'Objective': objective_fnc.__name__,
                 'World': world,
@@ -237,17 +237,21 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         pos, joint = get_best_point(objective_fnc, experiences, P_same,
                                     alpha_prior, model_prior, N_samples, world,
                                     locked_states,idx_last_successes,idx_last_failures,use_joint_positions)
-
+        if joint is None:
+            print "We finished the exploration"
+            print "This usually happens when you use the heuristic_proximity that has as objective to estimate the dependency structure and not to reduce the entropy"
+            break
+            
         for n, p in enumerate(pos):
             current_data["DesiredPos" + str(n)] = [p]
         current_data["CheckedJoint"] = [joint]
         
-        # save the locked states before the action
+        # save the joint and locked states before the action
         locked_states_before[joint] = action_machine.check_state(joint)
+        jpos_before = np.array([int(j.get_q()) for j in world.joints])
 
         # run best action, i.e. move joints to desired position
         action_machine.run_action(pos)
-
         
         # get real position after action (PD-controllers aren't perfect)
         jpos = np.array([int(j.get_q()) for j in world.joints])
@@ -262,10 +266,11 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
             current_data["LockingState" + str(n)] = [p]
 
         # if the locked states changed the action was successful, if not, it was a failure
+        # CORRECTION: it could be that a joint moves but it does not unlock a mechanism. Then it won't be a failure nor a success. We just do not add it no any list
         if np.any(locked_states_before != locked_states):
             idx_last_failures = []
             idx_last_successes.append(joint)
-        else:
+        elif not np.any(jpos_before != jpos):
             idx_last_failures.append(joint)
 
         # add new experience
