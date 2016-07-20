@@ -195,15 +195,32 @@ def prob_locked(experiences, joint_pos, np.ndarray[double, ndim=3] p_same,
     return d
 
 
-def random_objective(exp, joint_pos, p_same, alpha_prior, model_prior):
+def random_objective(exp, joint_pos, p_same, alpha_prior, model_prior, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False):
     return np.random.uniform()
+
+def heuristic_proximity(exp, joint_pos, p_same, alpha_prior, model_prior, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False):
+    
+    #TODO: Ask Johannes what are his objectives returning for the first action. If returns the same value for all the actions, the maximum will be just the first action of the list (?). Basically, how does he choose the first action?
+    if len(idx_last_successes) == 0:
+        return np.random.uniform()    
+
+    if use_joint_positions:
+        distance = np.linalg.norm(world.joints[idx_last_successes[-1]].position- world.joints[idx_next_joint].position)
+    else:
+        distance = abs(idx_last_successes[-1] - idx_next_joint)
+        
+    
+    if not idx_next_joint in idx_last_failures and not idx_next_joint in idx_last_successes:
+        return -distance #Distance between next joint and last joint 
+    else:
+        return -np.inf
 
 
 def exp_cross_entropy(experiences, joint_pos,
                       np.ndarray[double, ndim=3] p_same,
                       np.ndarray[double, ndim=1] alpha_prior,
                       np.ndarray[double, ndim=1] model_prior,
-                      np.ndarray[double, ndim=1] model_post=None):
+                      np.ndarray[double, ndim=1] model_post=None, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False):
     """
     Compute the expected cross entropy between the current and the augmented
     model posterior, if we would make the next experience at joint_pos.
@@ -243,7 +260,7 @@ def exp_cross_entropy(experiences, joint_pos,
     return ce
 
 
-def exp_neg_entropy(experiences, joint_pos, p_same, alpha_prior, model_prior):
+def exp_neg_entropy(experiences, joint_pos, p_same, alpha_prior, model_prior, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False):
     ce = 0.
 
     output_likelihood = prob_locked(experiences, joint_pos, p_same,

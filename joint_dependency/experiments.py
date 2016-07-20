@@ -5,7 +5,7 @@ from joint_dependency.simulation import (create_world,  Controller,
 from joint_dependency.recorder import Record
 from joint_dependency.inference import (model_posterior, same_segment,
                                         exp_cross_entropy, random_objective,
-                                        exp_neg_entropy)
+                                        exp_neg_entropy, heuristic_proximity)
 from joint_dependency.ros_adapter import (create_ros_drawer_world,
                                           RosActionMachine)
 
@@ -65,7 +65,7 @@ def compute_p_same(p_cp):
 
 
 def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
-                   model_prior, N_samples, world, locked_states):
+                   model_prior, N_samples, world, locked_states,idx_last_successes=[], idx_last_failures=[],use_joint_positions=False):
     max_pos = None
     _max = - np.inf
     max_joint = None
@@ -79,7 +79,7 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
         
         joint = np.random.randint(0, len(world.joints))
         value = objective_fnc(experiences[joint], pos, p_same, alpha_prior,
-                              model_prior[joint])
+                              model_prior[joint], idx_last_successes=idx_last_successes,idx_next_joint=joint,idx_last_failures=idx_last_failures, world=world, use_joint_positions=use_joint_positions)
         
         if value > _max:
             _max = value
@@ -171,7 +171,7 @@ def calc_posteriors(world, experiences, P_same, alpha_prior, model_prior):
 
 def dependency_learning(N_actions, N_samples, world, objective_fnc,
                         use_change_points, alpha_prior, model_prior,
-                        action_machine, location):
+                        action_machine, location, use_joint_positions=False):
     #writer = Writer(location)
     widgets = [ Bar(), Percentage(),
                 " (Run #{}, PID {})".format(location[1],
@@ -186,6 +186,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     # get locking state of all joints by actuating them once
     jpos = np.array([int(j.get_q()) for j in world.joints])
     locked_states = [None] * len(world.joints)
+    locked_states_before = [None] * len(world.joints)
 
 
     if use_change_points:
@@ -227,30 +228,45 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
                 'P_cp': P_cp,
                 'P_same': P_same}
 
+    idx_last_successes=[]
+    idx_last_failures=[]
     for idx in range(N_actions):
 
         current_data = pd.DataFrame(index=[idx])
         # get best action according to objective function
         pos, joint = get_best_point(objective_fnc, experiences, P_same,
                                     alpha_prior, model_prior, N_samples, world,
-                                    locked_states)
+                                    locked_states,idx_last_successes,idx_last_failures,use_joint_positions)
 
         for n, p in enumerate(pos):
             current_data["DesiredPos" + str(n)] = [p]
         current_data["CheckedJoint"] = [joint]
+        
+        # save the locked states before the action
+        locked_states_before[joint] = action_machine.check_state(joint)
 
         # run best action, i.e. move joints to desired position
         action_machine.run_action(pos)
+
+        
         # get real position after action (PD-controllers aren't perfect)
         jpos = np.array([int(j.get_q()) for j in world.joints])
 
         for n, p in enumerate(jpos):
             current_data["RealPos" + str(n)] = [p]
 
+        # save the locked states after the action
         # test whether the joints are locked or not
         locked_states[joint] = action_machine.check_state(joint)
         for n, p in enumerate(locked_states):
             current_data["LockingState" + str(n)] = [p]
+
+        # if the locked states changed the action was successful, if not, it was a failure
+        if np.any(locked_states_before != locked_states):
+            idx_last_failures = []
+            idx_last_successes.append(joint)
+        else:
+            idx_last_failures.append(joint)
 
         # add new experience
         new_experience = {'data': jpos, 'value': locked_states[joint]}
@@ -311,6 +327,10 @@ def run_experiment(argst):
         objective = exp_neg_entropy
     elif args.objective == "cross_entropy":
         objective = exp_cross_entropy
+    elif args.objective == "heuristic_proximity":
+        objective = heuristic_proximity
+    else:
+        raise Exception("You tried to choose an objective that doesn't exist: "+args.objective)
 
     data, metadata = dependency_learning(N_actions=args.queries,
                                          N_samples=args.samples, world=world,
@@ -361,6 +381,10 @@ def run_ros_experiment(argst):
         objective = exp_neg_entropy
     elif args.objective == "cross_entropy":
         objective = exp_cross_entropy
+    elif args.objective == "heuristic_proximity":
+        objective = heuristic_proximity
+    else:
+        raise Exception("You tried to choose an objective that doesn't exist: "+args.objective)
 
     data, metadata = dependency_learning(args.queries, args.samples, world,
                                          objective, args.changepoint,
@@ -376,7 +400,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", "--objective", required=True,
                         help="The objective to optimize for exploration",
-                        choices=['random', 'entropy', 'cross_entropy'])
+                        choices=['random', 'entropy', 'cross_entropy', 'heuristic_proximity'])
     parser.add_argument("-c", "--changepoint", action='store_true',
                         help="Should change points used as prior")
     parser.add_argument("-t", "--threads", type=int,
