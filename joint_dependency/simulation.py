@@ -278,7 +278,7 @@ class MultiLocker(object):
 
 
 class ActionMachine(object):
-    def __init__(self, world, controller, tau):
+    def __init__(self, world, controller, tau=0.1):
         self.world = world
         self.controllers = controller
         self.tau = tau
@@ -457,13 +457,6 @@ def create_lockbox(num_of_joints=5, noise=None):
         noise = {'q': 10e-6, 'vel': 10e-6}
 
     world = World([])
-
-    #  master | slave | open | closed
-    # --------+-------+------+--------
-    #    0    |   1   | 160+ |  160-
-    #    1    |   2   | 160+ |  160-
-    #    2    |   3   | 160+ |  160-
-    #    3    |   4   | 160+ |  160-
 
     limits = (0, 180)
 
