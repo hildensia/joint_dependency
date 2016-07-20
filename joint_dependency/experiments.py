@@ -78,8 +78,8 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
             else:
                 pos[j] = np.random.randint(joint.min_limit, joint.max_limit)
         
-        joint = np.random.randint(0, len(world.joints))
-        value = objective_fnc(experiences[joint], pos, p_same, alpha_prior,
+        joint = int(np.random.randint(0, len(world.joints)))
+        value = objective_fnc(experiences[joint], pos, np.asarray(p_same), alpha_prior,
                               model_prior[joint])
         
         if value > _max:
