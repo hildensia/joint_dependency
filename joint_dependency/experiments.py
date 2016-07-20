@@ -220,14 +220,14 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
     progress.update(1)
 
-        metadata = {'ChangePointDetection': use_change_points,
-                'Date': datetime.datetime.now(),
-                'Objective': objective_fnc.__name__,
-                'World': world,
-                'ModelPrior': model_prior,
-                'AlphaPrior': alpha_prior,
-                'P_cp': P_cp,
-                'P_same': P_same}
+    metadata = {'ChangePointDetection': use_change_points,
+            'Date': datetime.datetime.now(),
+            'Objective': objective_fnc.__name__,
+            'World': world,
+            'ModelPrior': model_prior,
+            'AlphaPrior': alpha_prior,
+            'P_cp': P_cp,
+            'P_same': P_same}
 
     idx_last_successes=[]
     idx_last_failures=[]
