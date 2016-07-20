@@ -13,7 +13,10 @@ import bayesian_changepoint_detection.offline_changepoint_detection as bcd
 
 from functools import partial
 import datetime
-import cPickle
+try:
+    import cPickle
+except ImportError:
+    import pickle as cPickle
 import multiprocessing
 import multiprocessing.dummy
 import argparse
@@ -315,7 +318,7 @@ def run_experiment(argst):
                                          alpha_prior=alpha_prior,
                                          model_prior=model_prior,
                                          action_machine=
-                                         ActionMachine(world, controllers),
+                                         ActionMachine(world, controllers, .1),
                                          location=location)
 
     filename = "data_" + str(metadata["Date"]).replace(" ", "-") + (".pkl")
@@ -399,8 +402,9 @@ if __name__ == '__main__':
         run_ros_experiment((args, (0, 0)))
     else:
         pool = multiprocessing.Pool(args.threads, maxtasksperchild=1)
-        pool.map(run_experiment, zip([args]*args.runs,
-                                     zip([0]*args.runs, range(args.runs))))
+        arguments = list(zip([args]*args.runs, list(zip([0]*args.runs, range(args.runs)))))
+        print(arguments)
+        pool.map(run_experiment, arguments)
         pool.close()
         pool.join()
 
