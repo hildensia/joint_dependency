@@ -8,6 +8,7 @@ from joint_dependency.inference import (model_posterior, same_segment,
                                         exp_neg_entropy)
 from joint_dependency.ros_adapter import (create_ros_drawer_world,
                                           RosActionMachine)
+from joint_dependency.utils import rand_max
 
 import bayesian_changepoint_detection.offline_changepoint_detection as bcd
 
@@ -27,6 +28,8 @@ from scipy.stats import entropy
 
 from progressbar import ProgressBar, Bar, Percentage
 from blessings import Terminal
+
+from copy import deepcopy
 
 term = Terminal()
 
@@ -65,10 +68,37 @@ def compute_p_same(p_cp):
 
 
 def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
-                   model_prior, N_samples, world, locked_states):
-    max_pos = None
-    _max = - np.inf
-    max_joint = None
+                   model_prior, N_samples, world, locked_states,
+                   action_sampling_fnc):
+    actions = action_sampling_fnc(N_samples, world, locked_states)
+
+    action_values = [(action, objective_fnc(experiences[action[0]],
+                                            action[1],
+                                            p_same,
+                                            alpha_prior,
+                                            model_prior[action[0]]))
+                      for action in actions]
+
+    best_action = rand_max(action_values, lambda x: x[1])
+
+    return best_action[0][1], best_action[0][0]
+
+
+def small_joint_state_sampling(_, world, locked_states):
+    actions = []
+    for j, joint in enumerate(world.joints):
+        for _pos in (0, 180):
+            pos = np.ndarray((len(world.joints),))
+            if locked_states[j] == 1:
+                pos[j] = int(joint.get_q())
+            else:
+                pos[j] = _pos
+            actions.append((j, deepcopy(pos)))
+    return actions
+
+
+def large_joint_state_sampling(N_samples, world, locked_states):
+    actions = []
     for i in range(N_samples):
         pos = np.ndarray((len(world.joints),))
         for j, joint in enumerate(world.joints):
@@ -76,16 +106,8 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
                 pos[j] = int(joint.get_q())
             else:
                 pos[j] = np.random.randint(joint.min_limit, joint.max_limit)
-        
-        joint = np.random.randint(0, len(world.joints))
-        value = objective_fnc(experiences[joint], pos, p_same, alpha_prior,
-                              model_prior[joint])
-        
-        if value > _max:
-            _max = value
-            max_pos = pos
-            max_joint = joint
-    return max_pos, max_joint
+        actions.append((j, deepcopy(pos)))
+    return actions
 
 
 def get_probability_over_degree(P, qs):
@@ -171,7 +193,7 @@ def calc_posteriors(world, experiences, P_same, alpha_prior, model_prior):
 
 def dependency_learning(N_actions, N_samples, world, objective_fnc,
                         use_change_points, alpha_prior, model_prior,
-                        action_machine, location):
+                        action_machine, location, action_sampling_fnc):
     #writer = Writer(location)
     widgets = [ Bar(), Percentage(),
                 " (Run #{}, PID {})".format(location[1],
@@ -233,7 +255,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         # get best action according to objective function
         pos, joint = get_best_point(objective_fnc, experiences, P_same,
                                     alpha_prior, model_prior, N_samples, world,
-                                    locked_states)
+                                    locked_states, action_sampling_fnc)
 
         for n, p in enumerate(pos):
             current_data["DesiredPos" + str(n)] = [p]
@@ -312,6 +334,11 @@ def run_experiment(argst):
     elif args.objective == "cross_entropy":
         objective = exp_cross_entropy
 
+    if args.joint_state == "small":
+        action_sampling_fnc = small_joint_state_sampling
+    elif args.joint_state == "large":
+        action_sampling_fnc = large_joint_state_sampling
+
     data, metadata = dependency_learning(N_actions=args.queries,
                                          N_samples=args.samples, world=world,
                                          objective_fnc=objective,
@@ -320,7 +347,8 @@ def run_experiment(argst):
                                          model_prior=model_prior,
                                          action_machine=
                                          ActionMachine(world, controllers, .1),
-                                         location=location)
+                                         location=location,
+                                         action_sampling_fnc=action_sampling_fnc)
 
     filename = "data_" + str(metadata["Date"]).replace(" ", "-") + (".pkl")
     with open(filename, "wb") as _file:
@@ -393,6 +421,9 @@ if __name__ == '__main__':
                         help="The file with the probability distributions")
     parser.add_argument("--useRos", action='store_true',
                         help="Enable ROS/real robot usage.")
+    parser.add_argument("--joint_state", type=str, default='large',
+                        help="Should we use a large or a small joint state "
+                             "(large/small).")
 
     args = parser.parse_args()
 
