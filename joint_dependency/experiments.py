@@ -377,7 +377,7 @@ def run_experiment(argst):
                                          model_prior=model_prior,
                                          action_machine=
                                          ActionMachine(world, controllers, .1),
-                                         location=location)
+                                         location=location, use_joint_positions=args.use_joint_positions)
 
     filename = "data_" + str(metadata["Date"]).replace(" ", "-") + (".pkl")
     with open(filename, "wb") as _file:
