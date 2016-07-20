@@ -321,7 +321,7 @@ def run_experiment(argst):
     bcd.offline_changepoint_detection.data = None
     Record.records[pid] = pd.DataFrame()
 
-    world = create_lockbox(use_joint_positions=args.useJoint3d)
+    world = create_lockbox(use_joint_positions=args.use_joint_positions)
     controllers = []
     for j, _ in enumerate(world.joints):
         controllers.append(Controller(world, j))
@@ -331,7 +331,7 @@ def run_experiment(argst):
     independent_prior = .7
 
     # the model prior is proportional to 1/distance between the joints
-    if args.useJoint3d:
+    if args.use_joint_positions:
         model_prior = build_model_prior_3d(world, independent_prior)
     else:    
         model_prior = build_model_prior_simple(world, independent_prior)
@@ -376,7 +376,7 @@ def run_ros_experiment(argst):
     independent_prior = .7
 
     # the model prior is proportional to 1/distance between the joints
-    if args.useJoint3d:
+    if args.use_joint_positions:
         model_prior = build_model_prior_3d(n, independent_prior)
     else:    
         model_prior = build_model_prior_simple(n, independent_prior)
@@ -419,7 +419,7 @@ if __name__ == '__main__':
                         help="The file with the probability distributions")
     parser.add_argument("--useRos", action='store_true',
                         help="Enable ROS/real robot usage.")
-    parser.add_argument("--useJoint3d", action='store_true',
+    parser.add_argument("--use_joint_positions", action='store_true',
                         help="Don't assume a linear sequence of joints but 3d positions.")
 
     args = parser.parse_args()
