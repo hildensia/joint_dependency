@@ -72,16 +72,19 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
                    action_sampling_fnc):
     actions = action_sampling_fnc(N_samples, world, locked_states)
 
-    action_values = [(action, objective_fnc(experiences[action[0]],
-                                            action[1],
-                                            p_same,
-                                            alpha_prior,
-                                            model_prior[action[0]]))
-                      for action in actions]
+    action_values = []
+    for action in actions:
+        check_joint = np.random.randint(0, len(world.joints))
+        value = objective_fnc(experiences[check_joint],
+                              action[1],
+                              np.asarray(p_same),
+                              alpha_prior,
+                              model_prior[check_joint])
+        action_values.append((action[1], check_joint, action[0], value))
 
-    best_action = rand_max(action_values, lambda x: x[1])
+    best_action = rand_max(action_values, lambda x: x[3])
 
-    return best_action[0][1], best_action[0][0]
+    return best_action
 
 
 def small_joint_state_sampling(_, world, locked_states):
@@ -107,6 +110,21 @@ def large_joint_state_sampling(N_samples, world, locked_states):
             else:
                 pos[j] = np.random.randint(joint.min_limit, joint.max_limit)
         actions.append((j, deepcopy(pos)))
+    return actions
+
+
+def large_joint_state_one_joint_moving_sampling(N_samples, world,
+                                                locked_state):
+
+    actions = []
+    for i in range(N_samples):
+        pos = np.ndarray((len(world.joints),))
+        joint_idx = np.random.choice(
+            np.where(np.asarray(locked_state) == 0)[0])
+        joint = world.joints[joint_idx]
+        pos[joint_idx] = np.random.randint(joint.min_limit, joint.max_limit)
+        actions.append((joint_idx, deepcopy(pos)))
+        #print((joint_idx, pos))
     return actions
 
 
@@ -253,13 +271,19 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
         current_data = pd.DataFrame(index=[idx])
         # get best action according to objective function
-        pos, joint = get_best_point(objective_fnc, experiences, P_same,
-                                    alpha_prior, model_prior, N_samples, world,
-                                    locked_states, action_sampling_fnc)
+        pos, checked_joint, moved_joint, value = get_best_point(objective_fnc,
+                                                                experiences,
+                                                                P_same,
+                                                                alpha_prior,
+                                                                model_prior,
+                                                                N_samples,
+                                                                world,
+                                                                locked_states,
+                                                                action_sampling_fnc)
 
         for n, p in enumerate(pos):
             current_data["DesiredPos" + str(n)] = [p]
-        current_data["CheckedJoint"] = [joint]
+        current_data["CheckedJoint"] = [checked_joint]
 
         # run best action, i.e. move joints to desired position
         action_machine.run_action(pos)
@@ -270,15 +294,15 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
             current_data["RealPos" + str(n)] = [p]
 
         # test whether the joints are locked or not
-        locked_states = [action_machine.check_state(joint)
-                         for joint in range(len(world.joints))]
+        locked_states = [action_machine.check_state(joint_idx)
+                         for joint_idx in range(len(world.joints))]
         for n, p in enumerate(locked_states):
             current_data["LockingState" + str(n)] = [p]
 
         # add new experience
-        for joint in range(len(world.joints)):
-            new_experience = {'data': jpos, 'value': locked_states[joint]}
-            experiences[joint].append(new_experience)
+        for joint_idx in range(len(world.joints)):
+            new_experience = {'data': jpos, 'value': locked_states[joint_idx]}
+            experiences[joint_idx].append(new_experience)
 
         # calculate model posterior
         posteriors = calc_posteriors(world, experiences, P_same, alpha_prior,
@@ -339,7 +363,7 @@ def run_experiment(argst):
     if args.joint_state == "small":
         action_sampling_fnc = small_joint_state_sampling
     elif args.joint_state == "large":
-        action_sampling_fnc = large_joint_state_sampling
+        action_sampling_fnc = large_joint_state_one_joint_moving_sampling
 
     data, metadata = dependency_learning(N_actions=args.queries,
                                          N_samples=args.samples, world=world,
