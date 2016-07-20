@@ -22,7 +22,7 @@ def sgn(x):
 
 
 class Joint(object):
-    def __init__(self, states, dampings, limits, noise, index=None):
+    def __init__(self, states, dampings, limits, noise, index=None, position=None):
         if index is not None:
             self.index = index
         self.max_vel = np.inf
@@ -35,6 +35,7 @@ class Joint(object):
         self.direction = 1
         self.locked = False
         self.noise = noise
+        self.position = position
 
     def add_force(self, f):
         if not self.locked:
@@ -452,10 +453,22 @@ def create_world(n=3):
 
     return world
 
-def create_lockbox(num_of_joints=5, noise=None):
+# FIXME find better location
+lockbox_joint_positions = map( np.array, [
+    [5, 5, 0,],
+    [5, 3, 0,],
+    [3, 3, 0,],
+    [3, 1, 0,],
+    [1, 1, 0,],
+])
+
+def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False):
     if noise is None:
         noise = {'q': 10e-6, 'vel': 10e-6}
 
+    if use_joint_positions:
+        assert(len(lockbox_joint_positions) >= num_of_joints)
+        
     world = World([])
 
     limits = (0, 180)
@@ -470,13 +483,19 @@ def create_lockbox(num_of_joints=5, noise=None):
         lower = (0, m - 10)
         upper = (m + 10, 180)
 
+        jpos = lockbox_joint_positions[i] if use_joint_positions else None
+        
         world.add_joint(Joint([lower[1], upper[0]], dampings,
-                                   limits=limits, noise=noise))
+                                   limits=limits, noise=noise,
+                                   position=jpos 
+                                   ))
         if i > 0:
             MultiLocker(world, locker=world.joints[i-1],
                         locked=world.joints[i], locks=locks)
 
-        print("Joint {} opens at {} - {}".format(i, lower[1], upper[0]))
+        print("Joint {}{} opens at {} - {}".format(i, 
+              (" [%.1f, %.1f, %.1f]" % tuple(jpos.tolist()) ) if jpos is not None else "",
+              lower[1], upper[0]))
     # for i in range(2, 5):
     #     MultiLocker(self.world, locker=self.world.joints[i-1],
     #                 locked=self.world.joints[i], locks=[closed])

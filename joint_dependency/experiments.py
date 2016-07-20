@@ -1,6 +1,7 @@
 from __future__ import division
 
-from joint_dependency.simulation import (create_world,  Controller,
+from joint_dependency.simulation import (create_world,  create_lockbox,
+                                         Controller,
                                          ActionMachine)
 from joint_dependency.recorder import Record
 from joint_dependency.inference import (model_posterior, same_segment,
@@ -78,7 +79,7 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
                 pos[j] = np.random.randint(joint.min_limit, joint.max_limit)
         
         joint = np.random.randint(0, len(world.joints))
-        value = objective_fnc(experiences[joint], pos, p_same, alpha_prior,
+        value = objective_fnc(experiences[joint], pos, np.asarray(p_same), alpha_prior,
                               model_prior[joint], idx_last_successes=idx_last_successes,idx_next_joint=joint,idx_last_failures=idx_last_failures, world=world, use_joint_positions=use_joint_positions)
         
         if value > _max:
@@ -290,25 +291,11 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     return data, metadata
 
 
-def run_experiment(argst):
-    args, location = argst
 
-    # reset all things for every new experiment
-    pid = multiprocessing.current_process().pid
-    np.random.seed(pid)
-    bcd.offline_changepoint_detection.data = None
-    Record.records[pid] = pd.DataFrame()
 
-    world = create_world()
-    controllers = []
-    for j, _ in enumerate(world.joints):
-        controllers.append(Controller(world, j))
-
-    alpha_prior = np.array([.1, .1])
-
+def build_model_prior_simple(world, independent_prior):
     n = len(world.joints)
-    independent_prior = .7
-
+    
     # the model prior is proportional to 1/distance between the joints
     model_prior = np.array([[0 if x == y
                              else independent_prior if x == n
@@ -320,6 +307,51 @@ def run_experiment(argst):
     model_prior[:, :-1] = ((model_prior.T[:-1, :] /
                             np.sum(model_prior[:, :-1], 1)).T *
                            (1-independent_prior))
+
+                           
+    return model_prior
+
+def build_model_prior_3d(world, independent_prior):
+    j = world.joints
+    n = len(j)
+    
+    model_prior = np.array([[ 0 if x == y
+        else independent_prior if x == n
+        else 1/np.linalg.norm(
+            np.asarray(j[x].position)-np.asarray(j[y].position)
+        )
+        for x in range(n+1)]
+        for y in range(n)])
+    # normalize
+    model_prior[:, :-1] = ((model_prior.T[:-1, :] /
+                            np.sum(model_prior[:, :-1], 1)).T *
+                           (1-independent_prior))            
+    return model_prior
+
+def run_experiment(argst):
+    args, location = argst
+
+    # reset all things for every new experiment
+    pid = multiprocessing.current_process().pid
+    np.random.seed(pid)
+    bcd.offline_changepoint_detection.data = None
+    Record.records[pid] = pd.DataFrame()
+
+    world = create_lockbox(use_joint_positions=args.use_joint_positions)
+    controllers = []
+    for j, _ in enumerate(world.joints):
+        controllers.append(Controller(world, j))
+
+    alpha_prior = np.array([.1, .1])
+
+    independent_prior = .7
+
+    # the model prior is proportional to 1/distance between the joints
+    if args.use_joint_positions:
+        model_prior = build_model_prior_3d(world, independent_prior)
+    else:    
+        model_prior = build_model_prior_simple(world, independent_prior)
+
 
     if args.objective == "random":
         objective = random_objective
@@ -345,7 +377,7 @@ def run_experiment(argst):
     filename = "data_" + str(metadata["Date"]).replace(" ", "-") + (".pkl")
     with open(filename, "wb") as _file:
         cPickle.dump((data, metadata), _file)
-
+    
 
 def run_ros_experiment(argst):
     args, location = argst
@@ -364,16 +396,10 @@ def run_ros_experiment(argst):
     independent_prior = .7
 
     # the model prior is proportional to 1/distance between the joints
-    model_prior = np.array([[0 if x == y
-                             else independent_prior if x == n
-                             else 1/abs(x-y)
-                             for x in range(n+1)]
-                            for y in range(n)])
-
-    # normalize
-    model_prior[:, :-1] = ((model_prior.T[:-1, :] /
-                            np.sum(model_prior[:, :-1], 1)).T *
-                           (1-independent_prior))
+    if args.use_joint_positions:
+        model_prior = build_model_prior_3d(n, independent_prior)
+    else:    
+        model_prior = build_model_prior_simple(n, independent_prior)
 
     if args.objective == "random":
         objective = random_objective
@@ -417,6 +443,8 @@ if __name__ == '__main__':
                         help="The file with the probability distributions")
     parser.add_argument("--useRos", action='store_true',
                         help="Enable ROS/real robot usage.")
+    parser.add_argument("--use_joint_positions", action='store_true',
+                        help="Don't assume a linear sequence of joints but 3d positions.")
 
     args = parser.parse_args()
 
