@@ -48,6 +48,11 @@ class Writer(object):
             print(string)
 
 
+def generate_filename(metadata):
+    return "data_" + str(metadata["Date"]).replace(" ", "-")\
+        .replace("/", "-").replace(":", "-") + "_" + metadata['Objective'] + (".pkl")
+    
+
 def init(world):
     P_cp = []
     experiences = []
@@ -227,6 +232,11 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
                 'P_cp': P_cp,
                 'P_same': P_same}
 
+    # store empty data frame so file is available
+    filename = generate_filename(metadata)        
+    with open(filename, "w") as _file:
+        cPickle.dump((data, metadata), _file)
+
     for idx in range(N_actions):
 
         current_data = pd.DataFrame(index=[idx])
@@ -268,7 +278,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         data = data.append(current_data)
         progress.update(idx+1)
 
-        filename = "data_" + str(metadata["Date"]).replace(" ", "-") + (".pkl")
+        filename = generate_filename(metadata)        
         with open(filename, "w") as _file:
             cPickle.dump((data, metadata), _file)
 
@@ -324,7 +334,7 @@ def run_experiment(argst):
                                          ActionMachine(world, controllers, .1),
                                          location=location)
 
-    filename = "data_" + str(metadata["Date"]).replace(" ", "-") + (".pkl")
+    filename = generate_filename(metadata)
     with open(filename, "wb") as _file:
         cPickle.dump((data, metadata), _file)
 
@@ -370,7 +380,7 @@ def run_ros_experiment(argst):
                                          action_machine=RosActionMachine(world),
                                          location=location)
 
-    filename = "data_" + str(metadata["Date"]).replace(" ", "-") + (".pkl")
+    filename = generate_filename(metadata)
     with open(filename, "wb") as _file:
         cPickle.dump((data, metadata), _file)
 
