@@ -248,13 +248,15 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
             current_data["RealPos" + str(n)] = [p]
 
         # test whether the joints are locked or not
-        locked_states[joint] = action_machine.check_state(joint)
+        locked_states = [action_machine.check_state(joint)
+                         for joint in range(len(world.joints))]
         for n, p in enumerate(locked_states):
             current_data["LockingState" + str(n)] = [p]
 
         # add new experience
-        new_experience = {'data': jpos, 'value': locked_states[joint]}
-        experiences[joint].append(new_experience)
+        for joint in range(len(world.joints)):
+            new_experience = {'data': jpos, 'value': locked_states[joint]}
+            experiences[joint].append(new_experience)
 
         # calculate model posterior
         posteriors = calc_posteriors(world, experiences, P_same, alpha_prior,
