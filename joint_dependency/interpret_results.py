@@ -15,9 +15,12 @@ from matplotlib.lines import Line2D
 import re
 
 sns.set_style("darkgrid")
-lscol_ptn = re.compile("LockingState([0-9]+)")
 
-def plot_locking_states(df, meta):
+lscol_ptn = re.compile("LockingState([0-9]+)")
+def determine_num_joints(df, _):
+    return len([ lscol_ptn.match(c).group(1) for c in df.columns if lscol_ptn.match(c) is not None])
+
+def plot_locking_states(df, meta, num_joints=None):
 
     marker_style = dict(linestyle=':', marker='o', s=50,)
     
@@ -25,7 +28,8 @@ def plot_locking_states(df, meta):
         ax.margins(0.2)
         ax.set_axis_off()
 
-    num_joints = len([ lscol_ptn.match(c).group(1) for c in df.columns if lscol_ptn.match(c) is not None])
+    if num_joints is None:
+        num_joints = determine_num_joints(df)
 
     points = np.ones(num_joints)
     
@@ -46,17 +50,23 @@ def plot_locking_states(df, meta):
     
     plt.plot()
 
-def plot_entropy(df, meta):
+def plot_entropy(df, meta, num_joints=None):
+    if num_joints is None:
+        num_joints = determine_num_joints(df)
+
     plt.figure()    
-    for j in range(5):
+    for j in range(num_joints):
         var_name="Entropy%d"%j
         plt.plot(df[var_name], label=var_name)
     plt.legend()
     
 
-def plot_dependency_posterior(df, meta, t):
+def plot_dependency_posterior(df, meta, t, num_joints=None):
+    if num_joints is None:
+        num_joints = determine_num_joints(df)
+
     plt.figure()
-    posterior=np.array([df["Posterior%d"%j].iloc(t)[:] for j in range(5)])
+    posterior=np.array([df["Posterior%d"%j].iloc(t)[:] for j in range(num_joints)])
     print posterior
     print posterior.shape    
     plt.matshow(posterior, interpolation='nearest')
@@ -86,7 +96,7 @@ if __name__ == "__main__":
     
     df, meta = open_pickle_file(args.file)
     
-    #plot_locking_states(df, meta)
-    plot_entropy(df,meta)
-    plot_dependency_posterior(df,meta,-1)
+    plot_locking_states(df, meta, num_joints=determine_num_joints(df, meta))
+    plot_entropy(df,meta, num_joints=determine_num_joints(df, meta))
+    plot_dependency_posterior(df,meta,-1, num_joints=determine_num_joints(df, meta))
     plt.show()
