@@ -22,7 +22,7 @@ def determine_num_joints(df, _):
 
 def plot_locking_states(df, meta, num_joints=None):
 
-    marker_style = dict(linestyle=':', marker='o', s=50,)
+    marker_style = dict(linestyle=':', marker='o', s=100,)
     
     def format_axes(ax):
         ax.margins(0.2)
@@ -40,7 +40,7 @@ def plot_locking_states(df, meta, num_joints=None):
         
     for t in df.index:
         lock_states = df.loc[t][ [ "LockingState%d" % k for k in range(num_joints) ] ].tolist()
-        c = ["k" if l else "green" for l in lock_states]
+        c = ["orange" if l else "k" for l in lock_states]
         
         ax.scatter((t+0.1) * points, range(num_joints), color=c, **marker_style)
         format_axes(ax)
