@@ -477,7 +477,6 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
     for i in range(num_of_joints):
         dampings = [15, 200, 15]
 
-        m = random.randint(10, 170)
         if use_simple_locking_state:
             m = 170.
         else:
