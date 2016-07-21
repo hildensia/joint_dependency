@@ -334,9 +334,9 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         # CORRECTION: it could be that a joint moves but it does not unlock a mechanism. Then it won't be a failure nor a success. We just do not add it no any list
         if np.any(locked_states_before != locked_states):
             idx_last_failures = []
-            idx_last_successes.append(joint)
+            idx_last_successes.append(moved_joint)
         elif not np.any(jpos_before != jpos):
-            idx_last_failures.append(joint)
+            idx_last_failures.append(moved_joint)
 
         # add new experience
         for joint_idx in range(len(world.joints)):
