@@ -118,7 +118,7 @@ def large_joint_state_one_joint_moving_sampling(N_samples, world,
 
     actions = []
     for i in range(N_samples):
-        pos = np.ndarray((len(world.joints),))
+        pos = np.asarray([int(joint.get_q()) for joint in world.joints])
         joint_idx = np.random.choice(
             np.where(np.asarray(locked_state) == 0)[0])
         joint = world.joints[joint_idx]
