@@ -76,9 +76,9 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
                 pos[j] = int(joint.get_q())
             else:
                 pos[j] = np.random.randint(joint.min_limit, joint.max_limit)
-        
+
         joint = np.random.randint(0, len(world.joints))
-        value = objective_fnc(experiences[joint], pos, p_same, alpha_prior,
+        value = objective_fnc(experiences[joint], pos, np.asarray(p_same), alpha_prior,
                               model_prior[joint], idx_last_successes=idx_last_successes,idx_next_joint=joint,idx_last_failures=idx_last_failures, world=world, use_joint_positions=use_joint_positions)
         
         if value > _max:
@@ -261,7 +261,8 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
         # save the locked states after the action
         # test whether the joints are locked or not
-        locked_states[joint] = action_machine.check_state(joint)
+        locked_states = [action_machine.check_state(joint)
+                         for joint in range(len(world.joints))]
         for n, p in enumerate(locked_states):
             current_data["LockingState" + str(n)] = [p]
 
@@ -274,8 +275,9 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
             idx_last_failures.append(joint)
 
         # add new experience
-        new_experience = {'data': jpos, 'value': locked_states[joint]}
-        experiences[joint].append(new_experience)
+        for joint in range(len(world.joints)):
+            new_experience = {'data': jpos, 'value': locked_states[joint]}
+            experiences[joint].append(new_experience)
 
         # calculate model posterior
         posteriors = calc_posteriors(world, experiences, P_same, alpha_prior,
