@@ -56,7 +56,7 @@ def plot_entropy(df, meta):
 
 def plot_dependency_posterior(df, meta, t):
     plt.figure()
-    posterior=np.array([df["Posterior%d"%j].iloc(t)[:] for j in range(5)])
+    posterior=np.array([df["Posterior%d"%j].iloc[t] for j in range(5)])
     print posterior
     print posterior.shape    
     plt.matshow(posterior, interpolation='nearest')
@@ -88,5 +88,5 @@ if __name__ == "__main__":
     
     #plot_locking_states(df, meta)
     plot_entropy(df,meta)
-    plot_dependency_posterior(df,meta,-1)
+    plot_dependency_posterior(df,meta,4)
     plt.show()
