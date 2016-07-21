@@ -342,7 +342,8 @@ def run_experiment(argst):
     bcd.offline_changepoint_detection.data = None
     Record.records[pid] = pd.DataFrame()
 
-    world = create_lockbox(use_joint_positions=args.use_joint_positions)
+    world = create_lockbox(use_joint_positions=args.use_joint_positions,
+                           use_simple_locking_state=args.use_simple_locking_state)
     controllers = []
     for j, _ in enumerate(world.joints):
         controllers.append(Controller(world, j))
@@ -450,6 +451,10 @@ if __name__ == '__main__':
                         help="Enable ROS/real robot usage.")
     parser.add_argument("--use_joint_positions", action='store_true',
                         help="Don't assume a linear sequence of joints but 3d positions.")
+    parser.add_argument("--use_simple_locking_state", action='store_true',
+                        help="Don't randomize the locking configuration, but have "
+                             "joint limits lock other joints")
+
 
     args = parser.parse_args()
 

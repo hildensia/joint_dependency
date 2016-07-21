@@ -462,7 +462,8 @@ lockbox_joint_positions = map( np.array, [
     [1, 1, 0,],
 ])
 
-def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False):
+def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False, 
+                   use_simple_locking_state=False):
     if noise is None:
         noise = {'q': 10e-6, 'vel': 10e-6}
 
@@ -477,6 +478,11 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False):
         dampings = [15, 200, 15]
 
         m = random.randint(10, 170)
+        if use_simple_locking_state:
+            m = 170.
+        else:
+            m = random.randint(10, 170)
+        
         if i > 0:
             locks = [lower, upper]
 
