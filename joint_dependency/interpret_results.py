@@ -12,38 +12,37 @@ import pandas as pd
 import numpy as np
 
 from matplotlib.lines import Line2D
+import re
 
 sns.set_style("darkgrid")
+lscol_ptn = re.compile("LockingState([0-9]+)")
 
 def plot_locking_states(df, meta):
 
-    points = np.ones(5)  # Draw 3 points for each line
-    text_style = dict(horizontalalignment='right', verticalalignment='center',
-                      fontsize=12, fontdict={'family': 'monospace'})
-    marker_style = dict(color='cornflowerblue', linestyle=':', marker='o',
-                        markersize=15, markerfacecoloralt='gray')
+    marker_style = dict(linestyle=':', marker='o', s=50,)
     
     def format_axes(ax):
         ax.margins(0.2)
         ax.set_axis_off()
-#    
-#    
-#    def nice_repr(text):
-#        return repr(text).lstrip('u')
 
-    num_joints = 7
+    num_joints = len([ lscol_ptn.match(c).group(1) for c in df.columns if lscol_ptn.match(c) is not None])
+
+    points = np.ones(num_joints)
     
     fig, ax = plt.subplots()
-    
-    # Plot all fill styles.
-    for t in df.index:
-        lock = df.loc[t][ [ "LockingState%d" % k for k in range(num_joints) ] ]
-        c = "red" if lock else "green"
+    for j in range(num_joints):
+        ax.text(-1.5, j, "%d" % j)
+    ax.text(0, -1.5, "time")
         
-        ax.text(-0.5, t, "%d" % t)
-        ax.plot(t * points, fillstyle='full', c=c, **marker_style)
+    for t in df.index:
+        lock_states = df.loc[t][ [ "LockingState%d" % k for k in range(num_joints) ] ].tolist()
+        c = ["k" if l else "green" for l in lock_states]
+        
+        ax.scatter((t+0.1) * points, range(num_joints), color=c, **marker_style)
         format_axes(ax)
-        ax.set_title('Locking state evolution')
+        
+    ax.set_title('Locking state evolution')
+    ax.set_xlabel("t")
     
     plt.plot()
 
