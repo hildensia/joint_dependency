@@ -66,9 +66,7 @@ def plot_dependency_posterior(df, meta, t, num_joints=None):
         num_joints = determine_num_joints(df)
 
     plt.figure()
-    posterior=np.array([df["Posterior%d"%j].iloc(t)[:] for j in range(num_joints)])
-    print posterior
-    print posterior.shape    
+    posterior=np.array([df["Posterior%d"%j].iloc[t] for j in range(num_joints)])
     plt.matshow(posterior, interpolation='nearest')
     plt.show()
     
@@ -99,4 +97,5 @@ if __name__ == "__main__":
     plot_locking_states(df, meta, num_joints=determine_num_joints(df, meta))
     plot_entropy(df,meta, num_joints=determine_num_joints(df, meta))
     plot_dependency_posterior(df,meta,-1, num_joints=determine_num_joints(df, meta))
+
     plt.show()
