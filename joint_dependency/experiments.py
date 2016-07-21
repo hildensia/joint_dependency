@@ -49,6 +49,11 @@ class Writer(object):
             print(string)
 
 
+def generate_filename(metadata):
+    return "data_" + str(metadata["Date"]).replace(" ", "-")\
+        .replace("/", "-").replace(":", "-") + "_" + metadata['Objective'] + (".pkl")
+    
+
 def init(world):
     P_cp = []
     experiences = []
@@ -221,16 +226,19 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     progress.update(1)
 
     metadata = {'ChangePointDetection': use_change_points,
-            'Date': datetime.datetime.now(),
-            'Objective': objective_fnc.__name__,
-            'World': world,
-            'ModelPrior': model_prior,
-            'AlphaPrior': alpha_prior,
-            'P_cp': P_cp,
-            'P_same': P_same}
+                'Date': datetime.datetime.now(),
+                'Objective': objective_fnc.__name__,
+                'World': world,
+                'ModelPrior': model_prior,
+                'AlphaPrior': alpha_prior,
+                'P_cp': P_cp,
+                'P_same': P_same}
 
-    idx_last_successes=[]
-    idx_last_failures=[]
+    # store empty data frame so file is available
+    filename = generate_filename(metadata)        
+    with open(filename, "w") as _file:
+        cPickle.dump((data, metadata), _file)
+
     for idx in range(N_actions):
 
         current_data = pd.DataFrame(index=[idx])
@@ -262,7 +270,8 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
         # save the locked states after the action
         # test whether the joints are locked or not
-        locked_states[joint] = action_machine.check_state(joint)
+        locked_states = [action_machine.check_state(joint)
+                         for joint in range(len(world.joints))]
         for n, p in enumerate(locked_states):
             current_data["LockingState" + str(n)] = [p]
 
@@ -275,8 +284,9 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
             idx_last_failures.append(joint)
 
         # add new experience
-        new_experience = {'data': jpos, 'value': locked_states[joint]}
-        experiences[joint].append(new_experience)
+        for joint in range(len(world.joints)):
+            new_experience = {'data': jpos, 'value': locked_states[joint]}
+            experiences[joint].append(new_experience)
 
         # calculate model posterior
         posteriors = calc_posteriors(world, experiences, P_same, alpha_prior,
@@ -288,7 +298,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         data = data.append(current_data)
         progress.update(idx+1)
 
-        filename = "data_" + str(metadata["Date"]).replace(" ", "-") + (".pkl")
+        filename = generate_filename(metadata)        
         with open(filename, "w") as _file:
             cPickle.dump((data, metadata), _file)
 
@@ -379,7 +389,7 @@ def run_experiment(argst):
                                          ActionMachine(world, controllers, .1),
                                          location=location, use_joint_positions=args.use_joint_positions)
 
-    filename = "data_" + str(metadata["Date"]).replace(" ", "-") + (".pkl")
+    filename = generate_filename(metadata)
     with open(filename, "wb") as _file:
         cPickle.dump((data, metadata), _file)
     
@@ -423,7 +433,7 @@ def run_ros_experiment(argst):
                                          action_machine=RosActionMachine(world),
                                          location=location)
 
-    filename = "data_" + str(metadata["Date"]).replace(" ", "-") + (".pkl")
+    filename = generate_filename(metadata)
     with open(filename, "wb") as _file:
         cPickle.dump((data, metadata), _file)
 
