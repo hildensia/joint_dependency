@@ -310,8 +310,8 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         current_data["CheckedJoint"] = [checked_joint]
 
         # save the joint and locked states before the action
-        locked_states_before = [action_machine.check_state(joint_idx)
-                                for joint_idx in range(len(world.joints))]
+        locked_states_before = [joint.is_locked()
+                                for joint in world.joints]
         jpos_before = np.array([int(j.get_q()) for j in world.joints])
 
         # run best action, i.e. move joints to desired position
@@ -325,8 +325,8 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
         # save the locked states after the action
         # test whether the joints are locked or not
-        locked_states = [action_machine.check_state(joint_idx)
-                         for joint_idx in range(len(world.joints))]
+        locked_states = [joint.is_locked()
+                         for joint in world.joints]
         for n, p in enumerate(locked_states):
             current_data["LockingState" + str(n)] = [p]
 
