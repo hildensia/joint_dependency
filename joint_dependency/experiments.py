@@ -87,7 +87,12 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
                               action[1],
                               np.asarray(p_same),
                               alpha_prior,
-                              model_prior[check_joint])
+                              model_prior[check_joint],
+                              idx_last_successes,
+                              action[0],
+                              idx_last_failures,
+                              world,
+                              use_joint_positions)
         action_values.append((action[1], check_joint, action[0], value))
 
     best_action = rand_max(action_values, lambda x: x[3])
