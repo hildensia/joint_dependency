@@ -2,7 +2,14 @@
 
 from setuptools import setup
 from Cython.Build import cythonize
-import joint_dependency
+try:
+  import joint_dependency
+except:
+  import sys
+  import os
+  path = os.path.dirname(os.path.realpath(__file__))
+  sys.path.append(path)
+  import joint_dependency
 import numpy
 
 setup(

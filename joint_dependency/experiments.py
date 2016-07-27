@@ -1,3 +1,5 @@
+#!/usr/bin/env python2
+
 from __future__ import division
 
 from joint_dependency.simulation import (create_world,  Controller,
