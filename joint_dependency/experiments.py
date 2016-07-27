@@ -222,14 +222,18 @@ def calc_posteriors(world, experiences, P_same, alpha_prior, model_prior):
 def dependency_learning(N_actions, N_samples, world, objective_fnc,
                         use_change_points, alpha_prior, model_prior,
                         action_machine, location, action_sampling_fnc,
-                        use_joint_positions=False):
-    #writer = Writer(location)
-    widgets = [ Bar(), Percentage(),
-                " (Run #{}, PID {})".format(location[1],
-                                            multiprocessing.current_process().pid)]
-    progress = ProgressBar(maxval=N_actions+2, #fd=writer,
-                           widgets=widgets).start()
-    progress.update(0)
+                        use_joint_positions=False, show_progress_bar=True):
+                          
+    if show_progress_bar:
+      writer = Writer(location)
+                    
+      widgets = [ Bar(), Percentage(),
+                  " (Run #{}, PID {})".format(location[1],
+                                              multiprocessing.current_process().pid)]
+      progress = ProgressBar(maxval=N_actions+2, #fd=writer,
+                             widgets=widgets).start()
+      progress.update(0)
+      
     # init phase
     # initialize the probability distributions
     P_cp, experiences = init(world)
@@ -268,7 +272,8 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     # while (np.array([entropy(p) for p in posteriors]) > .25).any():
     data = pd.DataFrame()
 
-    progress.update(1)
+    if show_progress_bar:
+      progress.update(1) 
 
     metadata = {'ChangePointDetection': use_change_points,
                 'Date': datetime.datetime.now(),
@@ -354,13 +359,17 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
             current_data["Entropy" + str(n)] = [entropy(p)]
 
         data = data.append(current_data)
-        progress.update(idx+1)
+        
+        if show_progress_bar:
+          progress.update(idx+1) 
 
         filename = generate_filename(metadata)
         with open(filename, "w") as _file:
             cPickle.dump((data, metadata), _file)
 
-    progress.finish()
+    if show_progress_bar:
+      progress.finish()
+      
     return data, metadata
 
 
@@ -399,7 +408,7 @@ def build_model_prior_3d(world, independent_prior):
                            (1-independent_prior))
     return model_prior
 
-def run_experiment(argst):
+def run_experiment(argst, world=None, action_machine = None):
     args, location = argst
 
     # reset all things for every new experiment
@@ -408,12 +417,16 @@ def run_experiment(argst):
     bcd.offline_changepoint_detection.data = None
     Record.records[pid] = pd.DataFrame()
 
-    world = create_lockbox(use_joint_positions=args.use_joint_positions,
-                           use_simple_locking_state=args.use_simple_locking_state)
-    controllers = []
-    for j, _ in enumerate(world.joints):
-        controllers.append(Controller(world, j))
-
+    if world is None:
+      world = create_lockbox(use_joint_positions=args.use_joint_positions,
+                             use_simple_locking_state=args.use_simple_locking_state)
+                             
+    if action_machine is None:
+      controllers = []
+      for j, _ in enumerate(world.joints):
+          controllers.append(Controller(world, j))
+      action_machine = ActionMachine(world, controllers, .1)
+      
     alpha_prior = np.array([.1, .1])
 
     n = len(world.joints)
@@ -452,11 +465,11 @@ def run_experiment(argst):
                                          use_change_points=args.changepoint,
                                          alpha_prior=alpha_prior,
                                          model_prior=model_prior,
-                                         action_machine=
-                                         ActionMachine(world, controllers, .1),
+                                         action_machine=action_machine,
                                          location=location,
                                          action_sampling_fnc=action_sampling_fnc,
-                                         use_joint_positions=args.use_joint_positions)
+                                         use_joint_positions=args.use_joint_positions,
+                                         show_progress_bar=not args.disable_progress_bar)
 
     filename = generate_filename(metadata)
     with open(filename, "wb") as _file:
@@ -500,7 +513,8 @@ def run_ros_experiment(argst):
                                          objective, args.changepoint,
                                          alpha_prior, model_prior,
                                          action_machine=RosActionMachine(world),
-                                         location=location)
+                                         location=location,
+                                         show_progress_bar=not args.disable_progress_bar)
 
     filename = generate_filename(metadata)
     with open(filename, "wb") as _file:
@@ -535,6 +549,8 @@ if __name__ == '__main__':
     parser.add_argument("--use_simple_locking_state", action='store_true',
                         help="Don't randomize the locking configuration, but have "
                              "joint limits lock other joints")
+    parser.add_argument("--disable_progress_bar", action='store_true',
+                        help="Disable the progress bar", default=False)
 
     args = parser.parse_args()
 
