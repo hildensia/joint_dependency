@@ -284,7 +284,7 @@ class ActionMachine(object):
         self.controllers = controller
         self.tau = tau
 
-    def run_action(self, pos):
+    def run_action(self, pos, joint=None):
         for j, p in enumerate(pos):
             self.controllers[j].move_to(p)
             while not self.controllers[j].is_done():
