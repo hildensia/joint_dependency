@@ -198,11 +198,14 @@ def prob_locked(experiences, joint_pos, np.ndarray[double, ndim=3] p_same,
 def random_objective(exp, joint_pos, p_same, alpha_prior, model_prior, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False):
     return np.random.uniform()
 
-def heuristic_proximity(exp, joint_pos, p_same, alpha_prior, model_prior, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False):
-    
+def heuristic_proximity(exp, joint_pos, p_same, alpha_prior, model_prior, idx_last_successes=None,idx_next_joint=None,idx_last_failures=None, world=None, use_joint_positions=False):
+    if not idx_last_successes:
+        return np.random.uniform()
+
+    if not idx_last_failures:
+        idx_last_failures = []
+
     #TODO: Ask Johannes what are his objectives returning for the first action. If returns the same value for all the actions, the maximum will be just the first action of the list (?). Basically, how does he choose the first action?
-    if len(idx_last_successes) == 0:
-        return np.random.uniform()    
 
     if use_joint_positions:
         distance = np.linalg.norm(world.joints[idx_last_successes[-1]].position- world.joints[idx_next_joint].position)
