@@ -279,8 +279,8 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
                 'P_cp': P_cp,
                 'P_same': P_same}
 
-    idx_last_successes=[]
-    idx_last_failures=[]
+    idx_last_successes = []
+    idx_last_failures = []
 
     # store empty data frame so file is available
     filename = generate_filename(metadata)
@@ -290,22 +290,25 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     for idx in range(N_actions):
         current_data = pd.DataFrame(index=[idx])
         # get best action according to objective function
-        pos, checked_joint, moved_joint, value = get_best_point(objective_fnc,
-                                                                experiences,
-                                                                P_same,
-                                                                alpha_prior,
-                                                                model_prior,
-                                                                N_samples,
-                                                                world,
-                                                                locked_states,
-                                                                action_sampling_fnc,
-                                                                idx_last_successes,
-                                                                idx_last_failures,
-                                                                use_joint_positions)
+        pos, checked_joint, moved_joint, value = \
+            get_best_point(objective_fnc,
+                           experiences,
+                           P_same,
+                           alpha_prior,
+                           model_prior,
+                           N_samples,
+                           world,
+                           locked_states,
+                           action_sampling_fnc,
+                           idx_last_successes,
+                           idx_last_failures,
+                           use_joint_positions)
 
         if joint is None:
             print("We finished the exploration")
-            print("This usually happens when you use the heuristic_proximity that has as objective to estimate the dependency structure and not to reduce the entropy")
+            print("This usually happens when you use the heuristic_proximity "
+                  "that has as objective to estimate the dependency structure "
+                  "and not to reduce the entropy")
             break
 
         for n, p in enumerate(pos):
@@ -318,7 +321,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         jpos_before = np.array([int(j.get_q()) for j in world.joints])
 
         # run best action, i.e. move joints to desired position
-        action_machine.run_action(pos)
+        action_machine.run_action(pos, moved_joint)
 
         # get real position after action (PD-controllers aren't perfect)
         jpos = np.array([int(j.get_q()) for j in world.joints])
