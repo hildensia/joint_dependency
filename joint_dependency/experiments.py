@@ -8,7 +8,8 @@ from joint_dependency.inference import (model_posterior, same_segment,
                                         exp_cross_entropy, random_objective,
                                         exp_neg_entropy, heuristic_proximity)
 from joint_dependency.ros_adapter import (create_ros_drawer_world,
-                                          RosActionMachine)
+                                          RosActionMachine,
+                                          create_ros_lockbox)
 from joint_dependency.utils import rand_max
 
 import bayesian_changepoint_detection.offline_changepoint_detection as bcd
@@ -222,10 +223,10 @@ def calc_posteriors(world, experiences, P_same, alpha_prior, model_prior):
 def dependency_learning(N_actions, N_samples, world, objective_fnc,
                         use_change_points, alpha_prior, model_prior,
                         action_machine, location, action_sampling_fnc,
-                        use_joint_positions=False):
+                        use_ros, use_joint_positions=False):
     #writer = Writer(location)
     widgets = [ Bar(), Percentage(),
-                " (Run #{}, PID {})".format(location[1],
+                " (Run #{}, PID {})".format(0,
                                             multiprocessing.current_process().pid)]
     progress = ProgressBar(maxval=N_actions+2, #fd=writer,
                            widgets=widgets).start()
@@ -239,20 +240,16 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     locked_states = [None] * len(world.joints)
     locked_states_before = [None] * len(world.joints)
 
-
     if use_change_points:
-        if args.prob_file is not None:
-            with open(args.prob_file, "r") as _file:
-                (_, P_cp, P_same) = cPickle.load(_file)
-        else:
-            for i, joint in enumerate(world.joints):
-                action_pos = np.array(jpos)
-                action_pos[i] = world.joints[i].max_limit
-                action_machine.run_action(action_pos)
-                action_pos[i] = world.joints[i].min_limit
-                action_machine.run_action(action_pos)
-            P_cp = update_p_cp(world, args.useRos)
-            P_same = compute_p_same(P_cp)
+        for i, joint in enumerate(world.joints):
+            print(action_machine)
+            action_pos = np.array(jpos)
+            action_pos[i] = world.joints[i].max_limit
+            action_machine.run_action(action_pos)
+            action_pos[i] = world.joints[i].min_limit
+            action_machine.run_action(action_pos)
+        P_cp = update_p_cp(world, use_ros)
+        P_same = compute_p_same(P_cp)
     else:
         P_same = compute_p_same(P_cp)
 
@@ -336,8 +333,11 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         for n, p in enumerate(locked_states):
             current_data["LockingState" + str(n)] = [p]
 
-        # if the locked states changed the action was successful, if not, it was a failure
-        # CORRECTION: it could be that a joint moves but it does not unlock a mechanism. Then it won't be a failure nor a success. We just do not add it no any list
+        # if the locked states changed the action was successful, if not,
+        # it was a failure
+        # CORRECTION: it could be that a joint moves but it does not unlock a
+        # mechanism. Then it won't be a failure nor a success. We just do not
+        # add it no any list
         if np.any(locked_states_before != locked_states):
             idx_last_failures = []
             idx_last_successes.append(moved_joint)
@@ -382,44 +382,50 @@ def build_model_prior_simple(world, independent_prior):
                             np.sum(model_prior[:, :-1], 1)).T *
                            (1-independent_prior))
 
-
     return model_prior
+
 
 def build_model_prior_3d(world, independent_prior):
     j = world.joints
     n = len(j)
 
-    model_prior = np.array([[ 0 if x == y
-        else independent_prior if x == n
-        else 1/np.linalg.norm(
-            np.asarray(j[x].position)-np.asarray(j[y].position)
-        )
-        for x in range(n+1)]
-        for y in range(n)])
+    model_prior = np.array([[(0
+                              if x == y
+                              else independent_prior)
+                             if x == n
+                             else 1/np.linalg.norm(
+                                 np.asarray(j[x].position)-np.asarray(j[y].position)
+                             )
+                             for x in range(n+1)]
+                            for y in range(n)])
     # normalize
     model_prior[:, :-1] = ((model_prior.T[:-1, :] /
                             np.sum(model_prior[:, :-1], 1)).T *
                            (1-independent_prior))
     return model_prior
 
-def run_experiment(argst):
-    args, location = argst
 
+def run_experiment(args):
     # reset all things for every new experiment
     pid = multiprocessing.current_process().pid
     np.random.seed(pid)
     bcd.offline_changepoint_detection.data = None
     Record.records[pid] = pd.DataFrame()
 
-    world = create_lockbox(use_joint_positions=args.use_joint_positions,
-                           use_simple_locking_state=args.use_simple_locking_state)
-    controllers = []
-    for j, _ in enumerate(world.joints):
-        controllers.append(Controller(world, j))
+    if args.use_ros:
+        world = create_ros_lockbox()
+        action_machine = RosActionMachine(world)
+    else:
+        world = create_lockbox(
+            use_joint_positions=args.use_joint_positions,
+            use_simple_locking_state=args.use_simple_locking_state)
+        controllers = []
+        for j, _ in enumerate(world.joints):
+            controllers.append(Controller(world, j))
+        action_machine = ActionMachine(world, controllers, .1)
 
     alpha_prior = np.array([.1, .1])
 
-    n = len(world.joints)
     independent_prior = .7
 
     # the model prior is proportional to 1/distance between the joints
@@ -448,72 +454,34 @@ def run_experiment(argst):
         action_sampling_fnc = small_joint_state_sampling
     elif args.joint_state == "large":
         action_sampling_fnc = large_joint_state_one_joint_moving_sampling
+    else:
+        raise Exception("No proper action sampling function chosen.")
 
-    data, metadata = dependency_learning(N_actions=args.queries,
-                                         N_samples=args.samples, world=world,
-                                         objective_fnc=objective,
-                                         use_change_points=args.changepoint,
-                                         alpha_prior=alpha_prior,
-                                         model_prior=model_prior,
-                                         action_machine=
-                                         ActionMachine(world, controllers, .1),
-                                         location=location,
-                                         action_sampling_fnc=action_sampling_fnc,
-                                         use_joint_positions=args.use_joint_positions)
+    data, metadata = dependency_learning(
+        N_actions=args.queries,
+        N_samples=args.samples,
+        world=world,
+        objective_fnc=objective,
+        use_change_points=args.changepoint,
+        alpha_prior=alpha_prior,
+        model_prior=model_prior,
+        action_machine=action_machine,
+        location=None,
+        action_sampling_fnc=action_sampling_fnc,
+        use_ros=args.use_ros,
+        use_joint_positions=args.use_joint_positions)
 
     filename = generate_filename(metadata)
     with open(filename, "wb") as _file:
         cPickle.dump((data, metadata), _file)
 
 
-def run_ros_experiment(argst):
-    args, location = argst
-
-    # reset all things for every new experiment
-    np.random.seed()
-    pid = multiprocessing.current_process().pid
-    bcd.offline_changepoint_detection.data = None
-    Record.records[pid] = pd.DataFrame()
-
-    world = create_ros_drawer_world()
-
-    alpha_prior = np.array([.1, .1])
-
-    n = len(world.joints)
-    independent_prior = .7
-
-    # the model prior is proportional to 1/distance between the joints
-    if args.use_joint_positions:
-        model_prior = build_model_prior_3d(n, independent_prior)
-    else:
-        model_prior = build_model_prior_simple(n, independent_prior)
-
-    if args.objective == "random":
-        objective = random_objective
-    elif args.objective == "entropy":
-        objective = exp_neg_entropy
-    elif args.objective == "cross_entropy":
-        objective = exp_cross_entropy
-    elif args.objective == "heuristic_proximity":
-        objective = heuristic_proximity
-    else:
-        raise Exception("You tried to choose an objective that doesn't exist: "+args.objective)
-
-    data, metadata = dependency_learning(args.queries, args.samples, world,
-                                         objective, args.changepoint,
-                                         alpha_prior, model_prior,
-                                         action_machine=RosActionMachine(world),
-                                         location=location)
-
-    filename = generate_filename(metadata)
-    with open(filename, "wb") as _file:
-        cPickle.dump((data, metadata), _file)
-
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", "--objective", required=True,
                         help="The objective to optimize for exploration",
-                        choices=['random', 'entropy', 'cross_entropy', 'heuristic_proximity'])
+                        choices=['random', 'entropy', 'cross_entropy',
+                                 'heuristic_proximity'])
     parser.add_argument("-c", "--changepoint", action='store_true',
                         help="Should change points used as prior")
     parser.add_argument("-t", "--threads", type=int,
@@ -528,30 +496,25 @@ if __name__ == '__main__':
                         help="Number of runs")
     parser.add_argument("-p", "--prob-file", type=str, default=None,
                         help="The file with the probability distributions")
-    parser.add_argument("--useRos", action='store_true',
+    parser.add_argument("--use_ros", action='store_true',
                         help="Enable ROS/real robot usage.")
     parser.add_argument("--joint_state", type=str, default='large',
                         help="Should we use a large or a small joint state "
                              "(large/small).")
     parser.add_argument("--use_joint_positions", action='store_true',
-                        help="Don't assume a linear sequence of joints but 3d positions.")
+                        help="Don't assume a linear sequence of joints but 3d "
+                             "positions.")
     parser.add_argument("--use_simple_locking_state", action='store_true',
-                        help="Don't randomize the locking configuration, but have "
-                             "joint limits lock other joints")
+                        help="Don't randomize the locking configuration, but "
+                             "have joint limits lock other joints")
 
     args = parser.parse_args()
 
     print(term.clear)
 
-
-    if args.useRos:
-        run_ros_experiment((args, (0, 0)))
-    else:
-        # pool = multiprocessing.Pool(1, maxtasksperchild=1)
-        # arguments = list(zip([args]*args.runs, list(zip([0]*args.runs, range(args.runs)))))
-        # pool.map(run_experiment, arguments)
-        # pool.close()
-        # pool.join()
-        run_experiment((args, (0,0)))
+    run_experiment(args)
 
     print(term.clear)
+
+if __name__ == '__main__':
+    main()
