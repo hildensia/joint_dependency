@@ -3,13 +3,10 @@ from __future__ import print_function
 import threading
 from collections import defaultdict
 
-try:
-    import roslib
-    roslib.load_manifest('joint_dependency_ros')
-    from std_msgs.msg import Int32, Bool, Float32
-    import rospy
-except ImportError:
-    print("Disable ROS.")
+import roslib
+roslib.load_manifest('joint_dependency_ros')
+from std_msgs.msg import Int32, Bool, Float32
+import rospy
 
 __author__ = 'johannes'
 
