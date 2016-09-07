@@ -7,17 +7,20 @@ from joint_dependency.recorder import Record
 from joint_dependency.inference import (model_posterior, same_segment,
                                         exp_cross_entropy, random_objective,
                                         exp_neg_entropy, heuristic_proximity)
-from joint_dependency.ros_adapter import (create_ros_drawer_world,
-                                          RosActionMachine,
+from joint_dependency.ros_adapter import (RosActionMachine,
                                           create_ros_lockbox)
 from joint_dependency.utils import rand_max
 
-import bayesian_changepoint_detection.offline_changepoint_detection as bcd
+try:
+    import bayesian_changepoint_detection.offline_changepoint_detection as bcd
+except:
+    bcd = None
+    print("Disable Changepoint Detection")
 
 from functools import partial
 import datetime
 try:
-    import cPickle
+    import dill as cPickle
 except ImportError:
     import pickle as cPickle
 import multiprocessing
@@ -270,7 +273,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     metadata = {'ChangePointDetection': use_change_points,
                 'Date': datetime.datetime.now(),
                 'Objective': objective_fnc.__name__,
-                'World': world,
+                #'World': world,
                 'ModelPrior': model_prior,
                 'AlphaPrior': alpha_prior,
                 'P_cp': P_cp,
@@ -409,7 +412,8 @@ def run_experiment(args):
     # reset all things for every new experiment
     pid = multiprocessing.current_process().pid
     np.random.seed(pid)
-    bcd.offline_changepoint_detection.data = None
+    if bcd:
+        bcd.offline_changepoint_detection.data = None
     Record.records[pid] = pd.DataFrame()
 
     if args.use_ros:
