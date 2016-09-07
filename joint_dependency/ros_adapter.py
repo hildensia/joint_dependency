@@ -6,7 +6,7 @@ from collections import defaultdict
 try:
     import roslib
     roslib.load_manifest('joint_dependency_ros')
-    from std_msgs.msg import Int32, Bool, Float32
+    from std_msgs.msg import Uint8, Bool, Float64
     import rospy
 except ImportError:
     print("Disable ROS.")
@@ -49,7 +49,9 @@ class RosJoint(object):
         self.min_limit = limits[0]
         self.max_limit = limits[1]
         self.locked = True
-        self.get_q_srv = FakeService('get_q', 'get_q_response', Int32, Int32)
+        self.get_q_srv = FakeService('/lockbox/joint_position',
+                                     '/lockbox/joint_position_result',
+                                     Uint8, Float64)
 
     def get_q(self, time=None):
         print("get_q {}".format(self.index))
@@ -70,8 +72,9 @@ class RosActionMachine(object):
     def __init__(self, world):
         self.world = world
         self.locking_state = defaultdict(bool)  # returns False on empty bucket
-        self.run_action_srv = FakeService('run_action', 'run_action_done',
-                Int32, Bool)
+        self.run_action_srv = FakeService('/lockbox/test_joint',
+                                          '/lockbox/test_joint_result',
+                                          Uint8, Bool)
 
     def run_action(self, pos, joint_idx):
         joint = self.world.joints[joint_idx]
