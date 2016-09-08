@@ -108,12 +108,9 @@ def small_joint_state_sampling(_, world, locked_states):
     actions = []
     for j, joint in enumerate(world.joints):
         #if locked_states[j] == 0:
-        for lower in (True, False):
+        for _pos in (joint.min_limit, joint.max_limit):
             pos = [joint.get_q() for joint in world.joints]
-            if lower:
-                pos[j] = joint.min_limit
-            else:
-                pos[j] = joint.max_limit
+            pos[j] = _pos
             actions.append((j, deepcopy(pos)))
     return actions
 
