@@ -23,22 +23,15 @@ def create_ros_lockbox():
 
 
 class FakeService(object):
-    def __init__(self, request, response, request_t, response_t):
-        self.publisher = rospy.Publisher(request, request_t, queue_size=10)
-        self.subscriber = rospy.Subscriber(response, response_t, self.callback)
-        self.response_received = threading.Event()
-        self.response = None
-
-    def callback(self, msg):
-        self.response = msg
-        self.response_received.set()
-
+    def __init__(self, request_topic, response_topic, request_t, response_t):
+        self.publisher = rospy.Publisher(request_topic, request_t,
+                queue_size=1, latch=True)
+        self.response_topic = response_topic
+        self.response_t = response_t
 
     def __call__(self, request):
         self.publisher.publish(request)
-        self.response_received.wait()
-        self.response_received.clear()
-        return self.response
+        return rospy.wait_for_message(self.response_topic, self.response_t)
 
 
 class RosJoint(object):
