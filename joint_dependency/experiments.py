@@ -323,6 +323,10 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         # run best action, i.e. move joints to desired position
         action_machine.run_action(pos, moved_joint)
 
+        # if we use the real robot, we need to check a joint for locking state
+        if use_ros:
+            action_machine.run_action(pos, checked_joint)
+
         # get real position after action (PD-controllers aren't perfect)
         jpos = np.array([int(j.get_q()) for j in world.joints])
 
