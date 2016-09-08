@@ -16,7 +16,7 @@ def create_ros_lockbox():
     rospy.init_node("joint_dependency")
     joints = []
     for i in range(5):
-        joints.append(RosJoint("lock_{}".format(i), i+1, [0, 180]))
+        joints.append(RosJoint("lock_{}".format(i), i+1, [0, 100]))
     joints[0].locked = False
     world = RosWorld(joints)
     return world
