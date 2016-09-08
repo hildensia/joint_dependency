@@ -51,6 +51,8 @@ class Writer(object):
         with term.location(*self.location):
             print(string)
 
+class ActionFailedException(Exception):
+    pass
 
 def generate_filename(metadata):
     return "data_" + str(metadata["Date"]).replace(" ", "-")\
@@ -292,39 +294,55 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     with open(filename, "w") as _file:
         cPickle.dump((data, metadata), _file)
 
+    repeat_action = False
+
     for idx in range(N_actions):
-        current_data = pd.DataFrame(index=[idx])
-        # get best action according to objective function
-        pos, checked_joint, moved_joint, value = get_best_point(objective_fnc,
-                                                                experiences,
-                                                                P_same,
-                                                                alpha_prior,
-                                                                model_prior,
-                                                                N_samples,
-                                                                world,
-                                                                locked_states,
-                                                                action_sampling_fnc,
-                                                                idx_last_successes,
-                                                                idx_last_failures,
-                                                                use_joint_positions)
+        if not repeat_action:
+            current_data = pd.DataFrame(index=[idx])
+            # get best action according to objective function
+            pos, checked_joint, moved_joint, value = get_best_point(objective_fnc,
+                                                                    experiences,
+                                                                    P_same,
+                                                                    alpha_prior,
+                                                                    model_prior,
+                                                                    N_samples,
+                                                                    world,
+                                                                    locked_states,
+                                                                    action_sampling_fnc,
+                                                                    idx_last_successes,
+                                                                    idx_last_failures,
+                                                                    use_joint_positions)
 
-        if joint is None:
-            print("We finished the exploration")
-            print("This usually happens when you use the heuristic_proximity that has as objective to estimate the dependency structure and not to reduce the entropy")
-            break
+            if joint is None:
+                print("We finished the exploration")
+                print("This usually happens when you use the heuristic_proximity that has as objective to estimate the dependency structure and not to reduce the entropy")
+                break
+    
+            for n, p in enumerate(pos):
+                current_data["DesiredPos" + str(n)] = [p]
+            current_data["CheckedJoint"] = [checked_joint]
+    
+            # save the joint and locked states before the action
+            locked_states_before = [joint.is_locked()
+                                    for joint in world.joints]
+            jpos_before = np.array([int(j.get_q()) for j in world.joints])
 
-        for n, p in enumerate(pos):
-            current_data["DesiredPos" + str(n)] = [p]
-        current_data["CheckedJoint"] = [checked_joint]
+        else:
+            print ("We are REPEATING the last action because there was a problem with the robot")
 
-        # save the joint and locked states before the action
-        locked_states_before = [joint.is_locked()
-                                for joint in world.joints]
-        jpos_before = np.array([int(j.get_q()) for j in world.joints])
+        # reset
+        repeat_action = False
 
-        # run best action, i.e. move joints to desired position
-        action_machine.run_action(pos)
-
+        # run best action (or repeat last one if necessary), 
+        # i.e. move joints to desired position
+        try:
+            action_machine.run_action(pos)
+        except ActionFailedException,e:
+            print str(e)
+            # TODO is that the right way to do it?
+            repeat_action = True
+            continue
+            
         # get real position after action (PD-controllers aren't perfect)
         jpos = np.array([int(j.get_q()) for j in world.joints])
 
