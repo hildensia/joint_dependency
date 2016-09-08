@@ -107,11 +107,11 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
 def small_joint_state_sampling(_, world, locked_states):
     actions = []
     for j, joint in enumerate(world.joints):
-        if locked_states[j] == 0:
-            for _pos in (0, 180):
-                pos = [joint.get_q() for joint in world.joints]
-                pos[j] = _pos
-                actions.append((j, deepcopy(pos)))
+        #if locked_states[j] == 0:
+        for _pos in (0, 180):
+            pos = [joint.get_q() for joint in world.joints]
+            pos[j] = _pos
+            actions.append((j, deepcopy(pos)))
     return actions
 
 
