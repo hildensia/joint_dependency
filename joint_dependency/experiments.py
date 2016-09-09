@@ -7,8 +7,12 @@ from joint_dependency.recorder import Record
 from joint_dependency.inference import (model_posterior, same_segment,
                                         exp_cross_entropy, random_objective,
                                         exp_neg_entropy, heuristic_proximity)
-from joint_dependency.ros_adapter import (RosActionMachine,
-                                          create_ros_lockbox)
+try:
+    from joint_dependency.ros_adapter import (RosActionMachine,
+                                              create_ros_lockbox)
+except ImportError:
+    print("Disable ROS.")
+
 from joint_dependency.utils import rand_max
 
 try:
@@ -92,6 +96,7 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
                               np.asarray(p_same),
                               alpha_prior,
                               model_prior[check_joint],
+                              None,
                               idx_last_successes,
                               action[0],
                               idx_last_failures,
@@ -111,6 +116,7 @@ def small_joint_state_sampling(_, world, locked_states):
         for _pos in (joint.min_limit, joint.max_limit):
             pos = [joint.get_q() for joint in world.joints]
             pos[j] = _pos
+            #TODO deepcopy needed?
             actions.append((j, deepcopy(pos)))
     return actions
 
@@ -256,12 +262,12 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     else:
         P_same = compute_p_same(P_cp)
 
-    for j, joint in enumerate(world.joints):
-        locked_states[j] = action_machine.check_state(j)
+    # for j, joint in enumerate(world.joints):
+    #     locked_states[j] = action_machine.check_state(j)
 
         # add the experiences
-        new_experience = {'data': jpos, 'value': locked_states[j]}
-        experiences[j].append(new_experience)
+        # new_experience = {'data': jpos, 'value': locked_states[j]}
+        # experiences[j].append(new_experience)
 
     # perform actions as long the entropy of all model distributions is still
     # big
@@ -304,7 +310,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
                            idx_last_failures,
                            use_joint_positions)
 
-        if joint is None:
+        if moved_joint is None:
             print("We finished the exploration")
             print("This usually happens when you use the heuristic_proximity "
                   "that has as objective to estimate the dependency structure "
@@ -322,10 +328,6 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
         # run best action, i.e. move joints to desired position
         action_machine.run_action(pos, moved_joint)
-
-        # if we use the real robot, we need to check a joint for locking state
-        if use_ros:
-            action_machine.run_action(pos, checked_joint)
 
         # get real position after action (PD-controllers aren't perfect)
         jpos = np.array([int(j.get_q()) for j in world.joints])
@@ -352,9 +354,8 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
             idx_last_failures.append(moved_joint)
 
         # add new experience
-        for joint_idx in range(len(world.joints)):
-            new_experience = {'data': jpos, 'value': locked_states[joint_idx]}
-            experiences[joint_idx].append(new_experience)
+        new_experience = {'data': jpos, 'value': locked_states[moved_joint]}
+        experiences[moved_joint].append(new_experience)
 
         # calculate model posterior
         posteriors = calc_posteriors(world, experiences, P_same, alpha_prior,
