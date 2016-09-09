@@ -195,10 +195,10 @@ def prob_locked(experiences, joint_pos, np.ndarray[double, ndim=3] p_same,
     return d
 
 
-def random_objective(exp, joint_pos, p_same, alpha_prior, model_prior, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False):
+def random_objective(exp, joint_pos, p_same, alpha_prior, model_prior, model_post=None, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False):
     return np.random.uniform()
 
-def heuristic_proximity(exp, joint_pos, p_same, alpha_prior, model_prior, idx_last_successes=None,idx_next_joint=None,idx_last_failures=None, world=None, use_joint_positions=False):
+def heuristic_proximity(exp, joint_pos, p_same, alpha_prior, model_prior, model_post=None, idx_last_successes=None,idx_next_joint=None,idx_last_failures=None, world=None, use_joint_positions=False):
     if not idx_last_successes:
         return np.random.uniform()
 
@@ -263,7 +263,7 @@ def exp_cross_entropy(experiences, joint_pos,
     return ce
 
 
-def exp_neg_entropy(experiences, joint_pos, p_same, alpha_prior, model_prior, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False):
+def exp_neg_entropy(experiences, joint_pos, p_same, alpha_prior, model_prior, model_post=None, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False):
     ce = 0.
 
     output_likelihood = prob_locked(experiences, joint_pos, p_same,
