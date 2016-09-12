@@ -326,11 +326,16 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
                                 for joint in world.joints]
         jpos_before = np.array([int(j.get_q()) for j in world.joints])
 
-        # run best action, i.e. move joints to desired position
-        action_machine.run_action(pos, moved_joint)
+        if np.all(np.abs(pos - jpos_before) < .1):
+            # if we want a no-op don't actually call the robot
+            jpos = pos
 
-        # get real position after action (PD-controllers aren't perfect)
-        jpos = np.array([int(j.get_q()) for j in world.joints])
+        else:
+            # run best action, i.e. move joints to desired position
+            action_machine.run_action(pos, moved_joint)
+
+            # get real position after action (PD-controllers aren't perfect)
+            jpos = np.array([int(j.get_q()) for j in world.joints])
 
         for n, p in enumerate(jpos):
             current_data["RealPos" + str(n)] = [p]
