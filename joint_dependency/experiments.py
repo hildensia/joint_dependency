@@ -236,29 +236,16 @@ def calc_posteriors(world, experiences, P_same, alpha_prior, model_prior):
 def dependency_learning(N_actions, N_samples, world, objective_fnc,
                         use_change_points, alpha_prior, model_prior,
                         action_machine, location, action_sampling_fnc,
-<<<<<<< HEAD
-                        use_joint_positions=False, show_progress_bar=True):
-                          
+                        use_ros=False, use_joint_positions=False, 
+                        show_progress_bar=True):
     if show_progress_bar:
-      writer = Writer(location)
-                    
-      widgets = [ Bar(), Percentage(),
-                  " (Run #{}, PID {})".format(location[1],
-                                              multiprocessing.current_process().pid)]
-      progress = ProgressBar(maxval=N_actions+2, #fd=writer,
-                             widgets=widgets).start()
-      progress.update(0)
-      
-=======
-                        use_ros, use_joint_positions=False):
-    #writer = Writer(location)
-    widgets = [ Bar(), Percentage(),
-                " (Run #{}, PID {})".format(0,
-                                            multiprocessing.current_process().pid)]
-    progress = ProgressBar(maxval=N_actions+2, #fd=writer,
-                           widgets=widgets).start()
-    progress.update(0)
->>>>>>> heuristics_plus_observability
+        #writer = Writer(location)
+        widgets = [ Bar(), Percentage(),
+                    " (Run #{}, PID {})".format(0,
+                                                multiprocessing.current_process().pid)]
+        progress = ProgressBar(maxval=N_actions+2, #fd=writer,
+                               widgets=widgets).start()
+        progress.update(0)
     # init phase
     # initialize the probability distributions
     P_cp, experiences = init(world)
