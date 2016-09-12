@@ -256,26 +256,33 @@ class Locker(object):
 
 
 class MultiLocker(object):
-    def __init__(self, world, locker, locked, locks):
+    def __init__(self, world, master, slave, locks):
+        """
+
+        :param world: The world
+        :param master: The master joint of the locking
+        :param slave: The slave joint of the locking
+        :param locks:  The locking position of the master (a tuple)
+        """
         self.world = world
         self.world.register(self)
-        self.locker = locker
-        self.locked = locked
+        self.master = master
+        self.slave = slave
         self.locks = locks
 
     def step(self, dt):
-        is_locked = self.locked.is_locked()
+        is_locked = self.slave.is_locked()
         should_be_locked = False
         for lock in self.locks:
-            if lock[0] <= self.locker.q <= lock[1]:
+            if lock[0] <= self.master.q <= lock[1]:
                 should_be_locked = True
 
         if is_locked and not should_be_locked:
             # print("unlock")
-            self.locked.unlock()
+            self.slave.unlock()
         elif not is_locked and should_be_locked:
             # print("lock")
-            self.locked.lock()
+            self.slave.lock()
 
 
 class ActionMachine(object):
@@ -285,10 +292,14 @@ class ActionMachine(object):
         self.tau = tau
 
     def run_action(self, pos, joint=None):
-        for j, p in enumerate(pos):
-            self.controllers[j].move_to(p)
-            while not self.controllers[j].is_done():
-                self.world.step(self.tau)
+        self.controllers[joint].move_to(pos[joint])
+        while not self.controllers[joint].is_done():
+            self.world.step(self.tau)
+        if abs(self.world.joints[joint].q - pos[joint]) < 0.5:
+            return True
+        else:
+            return False
+        # todo: return True if joint moved, and false if not
 
     def check_state(self, joint):
         old_pos = self.world.joints[joint].q
@@ -342,7 +353,7 @@ def create_drawer_with_key(world, noise, limits):
     dampings = [15, 15]
     world.add_joint(Joint(states, dampings, limits[1], noise))
 
-    MultiLocker(world, locker=world.joints[-2], locked=world.joints[-1],
+    MultiLocker(world, master=world.joints[-2], slave=world.joints[-1],
                 locks=[(limits[0][0], open_d[0]), (open_d[1], limits[0][1])])
 
 
@@ -365,7 +376,7 @@ def create_drawer_with_handle(world, noise, limits):
     dampings = [15, 15]
     world.add_joint(Joint(states, dampings, limits[1], noise))
 
-    MultiLocker(world, locker=world.joints[-2], locked=world.joints[-1],
+    MultiLocker(world, master=world.joints[-2], slave=world.joints[-1],
                 locks=[locked_d])
 
 
@@ -383,7 +394,7 @@ def create_cupboard_with_key(world, noise, limits):
     dampings = [15, 15]
     world.add_joint(Joint(states, dampings, limits[1], noise))
 
-    MultiLocker(world, locker=world.joints[-2], locked=world.joints[-1],
+    MultiLocker(world, master=world.joints[-2], slave=world.joints[-1],
                 locks=[(limits[0][0], open_d[0]), (open_d[1], limits[0][1])])
 
 
@@ -406,7 +417,7 @@ def create_cupboard_with_handle(world, noise, limits):
     dampings = [15, 15]
     world.add_joint(Joint(states, dampings, limits[1], noise))
 
-    MultiLocker(world, locker=world.joints[-2], locked=world.joints[-1],
+    MultiLocker(world, master=world.joints[-2], slave=world.joints[-1],
                 locks=[locked_d])
 
 
@@ -437,10 +448,10 @@ def create_window(world, noise, limits):
     dampings = [15, 15]
     world.add_joint(Joint(states, dampings, limits[2], noise))
 
-    MultiLocker(world, locker=world.joints[-3], locked=world.joints[-2],
+    MultiLocker(world, master=world.joints[-3], slave=world.joints[-2],
                 locks=tilt_d)
 
-    MultiLocker(world, locker=world.joints[-3], locked=world.joints[-1],
+    MultiLocker(world, master=world.joints[-3], slave=world.joints[-1],
                 locks=locked_d)
 
 
@@ -482,11 +493,12 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
         else:
             m = random.randint(10, 170)
         
+
+        lower = (-1, m - 10)
+        upper = (m + 41, 281)
+
         if i > 0:
             locks = [lower, upper]
-
-        lower = (0, m - 10)
-        upper = (m + 10, 180)
 
         jpos = lockbox_joint_positions[i] if use_joint_positions else None
         
@@ -495,12 +507,17 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
                                    position=jpos 
                                    ))
         if i > 0:
-            MultiLocker(world, locker=world.joints[i-1],
-                        locked=world.joints[i], locks=locks)
+            MultiLocker(world, master=world.joints[i - 1],
+                        slave=world.joints[i], locks=locks)
 
         print("Joint {}{} opens at {} - {}".format(i, 
               (" [%.1f, %.1f, %.1f]" % tuple(jpos.tolist()) ) if jpos is not None else "",
               lower[1], upper[0]))
+
+    # MultiLocker(world, master=world.joints[2], slave=world.joints[1],
+    #             locks=[(-1, -1), (20, 180)])
+    # MultiLocker(world, master=world.joints[3], slave=world.joints[2],
+    #             locks=[(-1, -1), (20, 180)])
     # for i in range(2, 5):
     #     MultiLocker(self.world, locker=self.world.joints[i-1],
     #                 locked=self.world.joints[i], locks=[closed])
@@ -509,4 +526,5 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
     #                for j, _ in enumerate(world.joints)]
     # action_machine = ActionMachine(world, controllers, tau)
 
+    world.step(.1)
     return world
