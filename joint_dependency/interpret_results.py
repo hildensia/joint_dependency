@@ -69,7 +69,19 @@ def plot_dependency_posterior(df, meta, t, num_joints=None):
     posterior=np.array([df["Posterior%d"%j].iloc[t] for j in range(num_joints)])
     plt.matshow(posterior, interpolation='nearest')
     plt.show()
-    
+
+
+def print_actions(df, num_joints=None):
+    pd.options.display.float_format = '{:,.2f}'.format
+    pd.set_option('expand_frame_repr', False)
+    if num_joints is None:
+        num_joints = determine_num_joints(df, None)
+
+    print(df[[u'CheckedJoint'] +
+             ['DesiredPos{}'.format(j) for j in range(num_joints)] +
+             ['LockingState{}'.format(j) for j in range(num_joints)]
+            ])
+
 #Index([u'DesiredPos0', u'DesiredPos1', u'DesiredPos2', u'DesiredPos3',
 #       u'DesiredPos4', u'CheckedJoint', u'RealPos0', u'RealPos1', u'RealPos2',
 #       u'RealPos3', u'RealPos4', u'LockingState0', u'LockingState1',
@@ -93,7 +105,8 @@ if __name__ == "__main__":
     args = parser.parse_args()  
     
     df, meta = open_pickle_file(args.file)
-    
+    print_actions(df)
+
     plot_locking_states(df, meta, num_joints=determine_num_joints(df, meta))
     plot_entropy(df,meta, num_joints=determine_num_joints(df, meta))
     plot_dependency_posterior(df,meta,-1, num_joints=determine_num_joints(df, meta))
