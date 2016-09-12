@@ -115,6 +115,8 @@ def small_joint_state_sampling(_, world, locked_states):
         #if locked_states[j] == 0:
         for _pos in (joint.min_limit, joint.max_limit):
             pos = [joint.get_q() for joint in world.joints]
+            if abs(pos[j] - _pos) < 0.9:
+                continue
             pos[j] = _pos
             #TODO deepcopy needed?
             actions.append((j, deepcopy(pos)))
@@ -326,13 +328,14 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
                                 for joint in world.joints]
         jpos_before = np.array([int(j.get_q()) for j in world.joints])
 
+        action_outcome = True
         if np.all(np.abs(pos - jpos_before) < .1):
             # if we want a no-op don't actually call the robot
             jpos = pos
 
         else:
             # run best action, i.e. move joints to desired position
-            action_machine.run_action(pos, moved_joint)
+            action_outcome = action_machine.run_action(pos, moved_joint)
 
             # get real position after action (PD-controllers aren't perfect)
             jpos = np.array([int(j.get_q()) for j in world.joints])
@@ -344,6 +347,10 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         # test whether the joints are locked or not
         locked_states = [joint.is_locked()
                          for joint in world.joints]
+
+        for idx, joint  in enumerate(world.joints):
+            print("{} q: {}".format(idx, joint.q))
+            print("{} locked: {}".format(idx, joint.locked))
         for n, p in enumerate(locked_states):
             current_data["LockingState" + str(n)] = [p]
 
@@ -352,10 +359,10 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         # CORRECTION: it could be that a joint moves but it does not unlock a
         # mechanism. Then it won't be a failure nor a success. We just do not
         # add it no any list
-        if np.any(locked_states_before != locked_states):
+        if action_outcome:
             idx_last_failures = []
             idx_last_successes.append(moved_joint)
-        elif not np.any(jpos_before != jpos):
+        else:
             idx_last_failures.append(moved_joint)
 
         # add new experience
