@@ -348,9 +348,6 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         locked_states = [joint.is_locked()
                          for joint in world.joints]
 
-        for idx, joint  in enumerate(world.joints):
-            print("{} q: {}".format(idx, joint.q))
-            print("{} locked: {}".format(idx, joint.locked))
         for n, p in enumerate(locked_states):
             current_data["LockingState" + str(n)] = [p]
 
