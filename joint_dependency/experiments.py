@@ -71,10 +71,12 @@ def init(world):
     P_cp = []
     experiences = []
     for i, joint in enumerate(world.joints):
-        prior = np.array([.1] * 360)
-        prior[60] = .9
-        prior[61] = .9
-        prior[62] = .9
+        prior = np.array([.001] * 360)
+        prior[60] = .999
+        prior[61] = .999
+        prior[62] = .999
+        prior[63] = .999
+        prior[64] = .999
         P_cp.append(prior)
         experiences.append([])
     return P_cp, experiences
@@ -452,7 +454,7 @@ def run_experiment(args):
             controllers.append(Controller(world, j))
         action_machine = ActionMachine(world, controllers, .1)
 
-    alpha_prior = np.array([.4, .4])
+    alpha_prior = np.array([.7, .7])
 
     independent_prior = .7
 
