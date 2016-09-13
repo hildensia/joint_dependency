@@ -447,10 +447,6 @@ def run_experiment(args, world=None, action_machine = None):
         world = create_ros_lockbox()
         action_machine = RosActionMachine(world)
     else:
-        print ("world is None")
-        print (action_machine is None)
-        print ("action_machine is None")
-        print (world is None)
         if world is None:
             world = create_lockbox(
                 use_joint_positions=args.use_joint_positions,
