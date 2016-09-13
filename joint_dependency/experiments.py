@@ -494,7 +494,8 @@ def build_model_prior_3d(world, independent_prior):
 def run_experiment(args, world=None, action_machine = None):
     # reset all things for every new experiment
     pid = multiprocessing.current_process().pid
-    np.random.seed(time.gmtime())
+    seed = time.gmtime()
+    np.random.seed(seed)
     if bcd:
         bcd.offline_changepoint_detection.data = None
     Record.records[pid] = pd.DataFrame()
@@ -562,6 +563,7 @@ def run_experiment(args, world=None, action_machine = None):
         use_joint_positions=args.use_joint_positions,
         show_progress_bar=not args.disable_progress_bar)
 
+    metadata['Seed'] = seed
     filename = generate_filename(metadata)
     with open(filename, "wb") as _file:
         cPickle.dump((data, metadata), _file)
