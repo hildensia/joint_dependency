@@ -39,6 +39,7 @@ from progressbar import ProgressBar, Bar, Percentage
 from blessings import Terminal
 
 from copy import deepcopy
+import time
 
 term = Terminal()
 
@@ -468,9 +469,8 @@ def build_model_prior_3d(world, independent_prior):
     j = world.joints
     n = len(j)
 
-    model_prior = np.array([[(0
-                              if x == y
-                              else independent_prior)
+    model_prior = np.array([[0 if x == y
+                             else independent_prior
                              if x == n
                              else 1/np.linalg.norm(
                                  np.asarray(j[x].position)-np.asarray(j[y].position)
@@ -486,7 +486,7 @@ def build_model_prior_3d(world, independent_prior):
 def run_experiment(args, world=None, action_machine = None):
     # reset all things for every new experiment
     pid = multiprocessing.current_process().pid
-    np.random.seed(pid)
+    np.random.seed(time.gmtime())
     if bcd:
         bcd.offline_changepoint_detection.data = None
     Record.records[pid] = pd.DataFrame()
@@ -511,15 +511,15 @@ def run_experiment(args, world=None, action_machine = None):
     independent_prior = .7
 
     # the model prior is proportional to 1/distance between the joints
-    if args.use_joint_positions:
-        model_prior = build_model_prior_3d(world, independent_prior)
-    else:
-        model_prior = build_model_prior_simple(world, independent_prior)
+    #if args.use_joint_positions:
+    model_prior = build_model_prior_3d(world, independent_prior)
+    # else:
+    #     model_prior = build_model_prior_simple(world, independent_prior)
 
     # normalize
-    model_prior[:, :-1] = ((model_prior.T[:-1, :] /
-                            np.sum(model_prior[:, :-1], 1)).T *
-                           (1-independent_prior))
+    # model_prior[:, :-1] = ((model_prior.T[:-1, :] /
+    #                         np.sum(model_prior[:, :-1], 1)).T *
+    #                        (1-independent_prior))
 
     if args.objective == "random":
         objective = random_objective

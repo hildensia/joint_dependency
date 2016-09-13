@@ -466,11 +466,11 @@ def create_world(n=3):
 
 # FIXME find better location
 lockbox_joint_positions = map( np.array, [
-    [5, 5, 0,],
-    [5, 3, 0,],
-    [3, 3, 0,],
-    [3, 1, 0,],
-    [1, 1, 0,],
+    [6, 1.2, 0],
+    [6.8, 4, 0],
+    [6.8, 6.5, 0],
+    [4, 6.5, 0],
+    [2.2, 7, 0]
 ])
 
 def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False, 
@@ -500,7 +500,7 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
         if i > 0:
             locks = [lower, upper]
 
-        jpos = lockbox_joint_positions[i] if use_joint_positions else None
+        jpos = lockbox_joint_positions[i]
         
         world.add_joint(Joint([lower[1], upper[0]], dampings,
                                    limits=limits, noise=noise,
