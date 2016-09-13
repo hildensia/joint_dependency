@@ -6,7 +6,8 @@ from joint_dependency.simulation import (create_world,  create_lockbox,
 from joint_dependency.recorder import Record
 from joint_dependency.inference import (model_posterior, same_segment,
                                         exp_cross_entropy, random_objective,
-                                        exp_neg_entropy, heuristic_proximity)
+                                        exp_neg_entropy, heuristic_proximity,
+                                        prob_locked)
 try:
     from joint_dependency.ros_adapter import (RosActionMachine,
                                               create_ros_lockbox)
@@ -70,7 +71,11 @@ def init(world):
     P_cp = []
     experiences = []
     for i, joint in enumerate(world.joints):
-        P_cp.append(np.array([.1] * 360))
+        prior = np.array([.1] * 360)
+        prior[60] = .9
+        prior[61] = .9
+        prior[62] = .9
+        P_cp.append(prior)
         experiences.append([])
     return P_cp, experiences
 
@@ -90,7 +95,6 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
     actions = action_sampling_fnc(N_samples, world, locked_states)
 
     action_values = []
-    print("-"*80)
     for action in actions:
         value = 0
         check_joint = action[0]  # np.random.randint(0, len(world.joints))
@@ -107,7 +111,6 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
                                    world,
                                    use_joint_positions,
                                    check_joint=check_joint)
-        #print("{} -- {}".format(action[1], value))
         action_values.append((action[1], check_joint, action[0], value))
 
     best_action = rand_max(action_values, lambda x: x[3])
@@ -304,6 +307,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     for idx in range(N_actions):
         current_data = pd.DataFrame(index=[idx])
         # get best action according to objective function
+
         pos, checked_joint, moved_joint, value = \
             get_best_point(objective_fnc,
                            experiences,
@@ -448,7 +452,7 @@ def run_experiment(args):
             controllers.append(Controller(world, j))
         action_machine = ActionMachine(world, controllers, .1)
 
-    alpha_prior = np.array([.1, .1])
+    alpha_prior = np.array([.4, .4])
 
     independent_prior = .7
 

@@ -54,7 +54,7 @@ def likelihood(experiences, np.ndarray[double, ndim=1] alpha_prior):
     A = np.sum(alpha_prior)
     n = np.zeros((alpha_prior.shape[0], ))
     for e in experiences:
-        n[e['value']] += 0.9
+        n[e['value']] += 1
     N = len(experiences)
     lnp = gammaln(A) - gammaln(N+A) + np.sum(gammaln(n + alpha_prior) -
                                              gammaln(alpha_prior))
@@ -84,7 +84,7 @@ def likelihood_dependent(experiences, int dependent_joint,
         pos = e['data'][dependent_joint]
         for e2 in experiences:
             pos2 = e2['data'][dependent_joint]
-            buckets[e2['value']] += 0.9 * p_same[dependent_joint][pos][pos2]
+            buckets[e2['value']] += p_same[dependent_joint][pos][pos2]
         p *= likelihood([e], buckets)
     return p
 
@@ -102,7 +102,7 @@ def likelihood_independent(experiences,
     """
     cdef np.ndarray[double, ndim=1] buckets = np.array(alpha_prior)
     for e in experiences:
-        buckets[e['value']] += 0.9
+        buckets[e['value']] += 1
     return likelihood(experiences, buckets)
 
 
@@ -264,9 +264,11 @@ def exp_cross_entropy(experiences, joint_pos,
         augmented_post = model_posterior(augmented_exp, p_same, alpha_prior,
                                          model_prior[check_joint])
 
-        # print("{} * H({}, {})".format(prob, model_post, augmented_post))
+        # print("{} * H({}, {}) {}".format(prob, model_post, augmented_post,
+        #                                  entropy(model_post, augmented_post)))
         ce += prob * entropy(model_post, augmented_post)
-    return locked[1] * ce
+    # print("is it movable? {}".format(locked[0]))
+    return locked[0] * ce
 
 
 def exp_neg_entropy(experiences, joint_pos, p_same, alpha_prior, model_prior, model_post=None, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False):
