@@ -90,19 +90,24 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
     actions = action_sampling_fnc(N_samples, world, locked_states)
 
     action_values = []
+    print("-"*80)
     for action in actions:
-        check_joint = np.random.randint(0, len(world.joints))
-        value = objective_fnc(experiences[check_joint],
-                              action[1],
-                              np.asarray(p_same),
-                              alpha_prior,
-                              model_prior[check_joint],
-                              None,
-                              idx_last_successes,
-                              action[0],
-                              idx_last_failures,
-                              world,
-                              use_joint_positions)
+        value = 0
+        check_joint = action[0]  # np.random.randint(0, len(world.joints))
+        for check_joint in range(5):
+            value += objective_fnc(experiences,
+                                   action[1],
+                                   np.asarray(p_same),
+                                   alpha_prior,
+                                   model_prior,
+                                   None,
+                                   idx_last_successes,
+                                   action[0],
+                                   idx_last_failures,
+                                   world,
+                                   use_joint_positions,
+                                   check_joint=check_joint)
+        #print("{} -- {}".format(action[1], value))
         action_values.append((action[1], check_joint, action[0], value))
 
     best_action = rand_max(action_values, lambda x: x[3])
@@ -329,8 +334,8 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
                                 for joint in world.joints]
         jpos_before = np.array([int(j.get_q()) for j in world.joints])
 
-        action_outcome = True
         if np.all(np.abs(pos - jpos_before) < .1):
+            action_outcome = True
             # if we want a no-op don't actually call the robot
             jpos = pos
 

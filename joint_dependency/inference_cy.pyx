@@ -54,7 +54,7 @@ def likelihood(experiences, np.ndarray[double, ndim=1] alpha_prior):
     A = np.sum(alpha_prior)
     n = np.zeros((alpha_prior.shape[0], ))
     for e in experiences:
-        n[e['value']] += 1
+        n[e['value']] += 0.9
     N = len(experiences)
     lnp = gammaln(A) - gammaln(N+A) + np.sum(gammaln(n + alpha_prior) -
                                              gammaln(alpha_prior))
@@ -84,7 +84,7 @@ def likelihood_dependent(experiences, int dependent_joint,
         pos = e['data'][dependent_joint]
         for e2 in experiences:
             pos2 = e2['data'][dependent_joint]
-            buckets[e2['value']] += p_same[dependent_joint][pos][pos2]
+            buckets[e2['value']] += 0.9 * p_same[dependent_joint][pos][pos2]
         p *= likelihood([e], buckets)
     return p
 
@@ -102,7 +102,7 @@ def likelihood_independent(experiences,
     """
     cdef np.ndarray[double, ndim=1] buckets = np.array(alpha_prior)
     for e in experiences:
-        buckets[e['value']] += 1
+        buckets[e['value']] += 0.9
     return likelihood(experiences, buckets)
 
 
@@ -222,8 +222,9 @@ def heuristic_proximity(exp, joint_pos, p_same, alpha_prior, model_prior, model_
 def exp_cross_entropy(experiences, joint_pos,
                       np.ndarray[double, ndim=3] p_same,
                       np.ndarray[double, ndim=1] alpha_prior,
-                      np.ndarray[double, ndim=1] model_prior,
-                      np.ndarray[double, ndim=1] model_post=None, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False):
+                      np.ndarray[double, ndim=2] model_prior,
+                      np.ndarray[double, ndim=1] model_post=None, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False,
+                      check_joint=None):
     """
     Compute the expected cross entropy between the current and the augmented
     model posterior, if we would make the next experience at joint_pos.
@@ -242,25 +243,30 @@ def exp_cross_entropy(experiences, joint_pos,
     ce = 0.
 
     if model_post is None:
-        model_post = model_posterior(experiences,
+        model_post = model_posterior(experiences[check_joint],
                                      p_same, alpha_prior,
-                                     model_prior)
+                                     model_prior[check_joint])
 
-    output_likelihood = prob_locked(experiences, joint_pos, p_same,
-                                    alpha_prior, model_prior,
+    locked = prob_locked(experiences[idx_next_joint], joint_pos, p_same,
+                                    alpha_prior, model_prior[idx_next_joint],
+                                    model_post=model_post).mean()
+
+    output_likelihood = prob_locked(experiences[check_joint], joint_pos, p_same,
+                                    alpha_prior, model_prior[check_joint],
                                     model_post=model_post)
 
     for i, prob in enumerate(output_likelihood.mean()):
         exp = {'data': joint_pos, 'value': i}
-        
-        augmented_exp = list(experiences)  # copy the list!
+
+        augmented_exp = list(experiences[check_joint])  # copy the list!
         augmented_exp.append(exp)  # add the 'new' experience
 
         augmented_post = model_posterior(augmented_exp, p_same, alpha_prior,
-                                         model_prior)
+                                         model_prior[check_joint])
 
+        # print("{} * H({}, {})".format(prob, model_post, augmented_post))
         ce += prob * entropy(model_post, augmented_post)
-    return ce
+    return locked[1] * ce
 
 
 def exp_neg_entropy(experiences, joint_pos, p_same, alpha_prior, model_prior, model_post=None, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False):
