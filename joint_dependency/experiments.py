@@ -379,7 +379,8 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
         for n, p in enumerate(pos):
             current_data["DesiredPos" + str(n)] = [p]
-        current_data["CheckedJoint"] = [checked_joint]
+        #current_data["CheckedJoint"] = [checked_joint]
+        current_data["CheckedJoint"] = [moved_joint]
 
         # save the joint and locked states before the action
         locked_states_before = [joint.is_locked()
@@ -423,6 +424,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
         # add new experience
         new_experience = {'data': jpos, 'value': locked_states[moved_joint]}
+        #print ("new locking state: ", locked_states[moved_joint])
         experiences[moved_joint].append(new_experience)
 
         # calculate model posterior
@@ -443,6 +445,12 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
     if show_progress_bar:
       progress.finish()
+      
+    try:
+        world.set_done()
+    except:
+        print ("Warn: world does not have 'set_done' method")
+        pass
       
     return data, metadata
 
