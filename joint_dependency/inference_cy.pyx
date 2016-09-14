@@ -195,10 +195,10 @@ def prob_locked(experiences, joint_pos, np.ndarray[double, ndim=3] p_same,
     return d
 
 
-def random_objective(exp, joint_pos, p_same, alpha_prior, model_prior, model_post=None, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False):
+def random_objective(exp, joint_pos, p_same, alpha_prior, model_prior, model_post=None, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False, check_joint=None):
     return np.random.uniform()
 
-def heuristic_proximity(exp, joint_pos, p_same, alpha_prior, model_prior, model_post=None, idx_last_successes=None,idx_next_joint=None,idx_last_failures=None, world=None, use_joint_positions=False):
+def heuristic_proximity(exp, joint_pos, p_same, alpha_prior, model_prior, model_post=None, idx_last_successes=None,idx_next_joint=None,idx_last_failures=None, world=None, use_joint_positions=False, check_joint=None):
     if not idx_last_successes:
         return np.random.uniform()
 
@@ -222,8 +222,9 @@ def heuristic_proximity(exp, joint_pos, p_same, alpha_prior, model_prior, model_
 def exp_cross_entropy(experiences, joint_pos,
                       np.ndarray[double, ndim=3] p_same,
                       np.ndarray[double, ndim=1] alpha_prior,
-                      np.ndarray[double, ndim=1] model_prior,
-                      np.ndarray[double, ndim=1] model_post=None, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False):
+                      np.ndarray[double, ndim=2] model_prior,
+                      np.ndarray[double, ndim=1] model_post=None, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False,
+                      check_joint=None):
     """
     Compute the expected cross entropy between the current and the augmented
     model posterior, if we would make the next experience at joint_pos.
@@ -242,25 +243,32 @@ def exp_cross_entropy(experiences, joint_pos,
     ce = 0.
 
     if model_post is None:
-        model_post = model_posterior(experiences,
+        model_post = model_posterior(experiences[check_joint],
                                      p_same, alpha_prior,
-                                     model_prior)
+                                     model_prior[check_joint])
 
-    output_likelihood = prob_locked(experiences, joint_pos, p_same,
-                                    alpha_prior, model_prior,
+    locked = prob_locked(experiences[idx_next_joint], joint_pos, p_same,
+                                    alpha_prior, model_prior[idx_next_joint],
+                                    model_post=model_post).mean()
+
+    output_likelihood = prob_locked(experiences[check_joint], joint_pos, p_same,
+                                    alpha_prior, model_prior[check_joint],
                                     model_post=model_post)
 
     for i, prob in enumerate(output_likelihood.mean()):
         exp = {'data': joint_pos, 'value': i}
-        
-        augmented_exp = list(experiences)  # copy the list!
+
+        augmented_exp = list(experiences[check_joint])  # copy the list!
         augmented_exp.append(exp)  # add the 'new' experience
 
         augmented_post = model_posterior(augmented_exp, p_same, alpha_prior,
-                                         model_prior)
+                                         model_prior[check_joint])
 
+        # print("{} * H({}, {}) {}".format(prob, model_post, augmented_post,
+        #                                  entropy(model_post, augmented_post)))
         ce += prob * entropy(model_post, augmented_post)
-    return ce
+    # print("is it movable? {}".format(locked[0]))
+    return locked[0] * ce
 
 
 def exp_neg_entropy(experiences, joint_pos, p_same, alpha_prior, model_prior, model_post=None, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False):

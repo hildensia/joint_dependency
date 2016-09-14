@@ -6,7 +6,8 @@ from joint_dependency.simulation import (create_world,  create_lockbox,
 from joint_dependency.recorder import Record
 from joint_dependency.inference import (model_posterior, same_segment,
                                         exp_cross_entropy, random_objective,
-                                        exp_neg_entropy, heuristic_proximity)
+                                        exp_neg_entropy, heuristic_proximity,
+                                        prob_locked)
 try:
     from joint_dependency.ros_adapter import (RosActionMachine,
                                               create_ros_lockbox)
@@ -69,7 +70,13 @@ def init(world):
     P_cp = []
     experiences = []
     for i, joint in enumerate(world.joints):
-        P_cp.append(np.array([.1] * 360))
+        prior = np.array([.001] * 360)
+        prior[60] = .999
+        prior[61] = .999
+        prior[62] = .999
+        prior[63] = .999
+        prior[64] = .999
+        P_cp.append(prior)
         experiences.append([])
     return P_cp, experiences
 
@@ -90,18 +97,21 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
 
     action_values = []
     for action in actions:
-        check_joint = np.random.randint(0, len(world.joints))
-        value = objective_fnc(experiences[check_joint],
-                              action[1],
-                              np.asarray(p_same),
-                              alpha_prior,
-                              model_prior[check_joint],
-                              None,
-                              idx_last_successes,
-                              action[0],
-                              idx_last_failures,
-                              world,
-                              use_joint_positions)
+        value = 0
+        check_joint = action[0]  # np.random.randint(0, len(world.joints))
+        for check_joint in range(5):
+            value += objective_fnc(experiences,
+                                   action[1],
+                                   np.asarray(p_same),
+                                   alpha_prior,
+                                   model_prior,
+                                   None,
+                                   idx_last_successes,
+                                   action[0],
+                                   idx_last_failures,
+                                   world,
+                                   use_joint_positions,
+                                   check_joint=check_joint)
         action_values.append((action[1], check_joint, action[0], value))
 
     best_action = rand_max(action_values, lambda x: x[3])
@@ -301,6 +311,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     for idx in range(N_actions):
         current_data = pd.DataFrame(index=[idx])
         # get best action according to objective function
+
         pos, checked_joint, moved_joint, value = \
             get_best_point(objective_fnc,
                            experiences,
@@ -332,8 +343,8 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
                                 for joint in world.joints]
         jpos_before = np.array([int(j.get_q()) for j in world.joints])
 
-        action_outcome = True
         if np.all(np.abs(pos - jpos_before) < .1):
+            action_outcome = True
             # if we want a no-op don't actually call the robot
             jpos = pos
 
@@ -458,7 +469,7 @@ def run_experiment(args, world=None, action_machine = None):
                 controllers.append(Controller(world, j))
             action_machine = ActionMachine(world, controllers, .1)
 
-    alpha_prior = np.array([.1, .1])
+    alpha_prior = np.array([.7, .7])
 
     independent_prior = .7
 
