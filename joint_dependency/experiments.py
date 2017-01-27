@@ -1,12 +1,13 @@
 from __future__ import division
 
-from joint_dependency.simulation import (create_world,  create_lockbox,
+from joint_dependency.simulation import (create_world, create_lockbox,
                                          Controller,
                                          ActionMachine)
 from joint_dependency.recorder import Record
 from joint_dependency.inference import (model_posterior, same_segment,
                                         exp_cross_entropy, random_objective,
                                         exp_neg_entropy, heuristic_proximity)
+
 try:
     from joint_dependency.ros_adapter import (RosActionMachine,
                                               create_ros_lockbox)
@@ -23,6 +24,7 @@ except:
 
 from functools import partial
 import datetime
+
 try:
     import dill as cPickle
 except ImportError:
@@ -43,12 +45,14 @@ import time
 
 term = Terminal()
 
+
 class Writer(object):
     """Create an object with a write method that writes to a
     specific place on the screen, defined at instantiation.
 
     This is the glue between blessings and progressbar.
     """
+
     def __init__(self, location):
         """
         Input: location - tuple of ints (x, y), the position
@@ -62,7 +66,7 @@ class Writer(object):
 
 
 def generate_filename(metadata):
-    return "data_" + str(metadata["Date"]).replace(" ", "-")\
+    return "data_" + str(metadata["Date"]).replace(" ", "-") \
         .replace("/", "-").replace(":", "-") + "_" + metadata['Objective'] + (".pkl")
 
 
@@ -75,6 +79,7 @@ def init(world):
     return P_cp, experiences
 
 
+## Compute the probability of being in the same segment
 def compute_p_same(p_cp):
     p_same = []
     for pcp in p_cp:
@@ -113,13 +118,13 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
 def small_joint_state_sampling(_, world, locked_states):
     actions = []
     for j, joint in enumerate(world.joints):
-        #if locked_states[j] == 0:
+        # if locked_states[j] == 0:
         for _pos in (joint.min_limit, joint.max_limit):
             pos = [joint.get_q() for joint in world.joints]
             if abs(pos[j] - _pos) < 0.9:
                 continue
             pos[j] = _pos
-            #TODO deepcopy needed?
+            # TODO deepcopy needed?
             actions.append((j, deepcopy(pos)))
     return actions
 
@@ -147,7 +152,7 @@ def large_joint_state_one_joint_moving_sampling(N_samples, world,
         joint = world.joints[joint_idx]
         pos[joint_idx] = np.random.randint(joint.min_limit, joint.max_limit)
         actions.append((joint_idx, deepcopy(pos)))
-        #print((joint_idx, pos))
+        # print((joint_idx, pos))
     return actions
 
 
@@ -155,13 +160,12 @@ def get_probability_over_degree(P, qs):
     probs = np.zeros((360,))
     count = np.zeros((360,))
     for i, pos in enumerate(qs[:-2]):
+        deg = int(pos) % 360
 
-        deg = int(pos)%360
-        
         probs[deg] += P[i]
         count[deg] += 1
 
-    probs = probs/count
+    probs = probs / count
     prior = 10e-8
     probs = np.array([prior if np.isnan(p) else p for p in probs])
     return probs, count
@@ -178,21 +182,21 @@ def update_p_cp(world, use_ros):
 
             vn = v[:] + af[1:]
             d = np.zeros((v.shape[0] + 1,))
-            d[1:] = abs((vn**2 - v[:]**2)/(0.1 * vn))
+            d[1:] = abs((vn ** 2 - v[:] ** 2) / (0.1 * vn))
         else:
             v = Record.records[pid]["v_" + str(j)][0:].as_matrix()
             af = Record.records[pid]["applied_force_" + str(j)][0:].as_matrix()
 
             vn = v[:-1] + af[:-1]
             d = np.zeros(v.shape)
-            d[1:] = abs((vn**2 - v[1:]**2)/(0.1 * vn))
+            d[1:] = abs((vn ** 2 - v[1:] ** 2) / (0.1 * vn))
 
         nans, x = nan_helper(d)
         d[nans] = np.interp(x(nans), x(~nans), d[~nans])
 
         Q, P, Pcp = bcd.offline_changepoint_detection(
             data=d,
-            prior_func=partial(bcd.const_prior, l=(len(d)+1)),
+            prior_func=partial(bcd.const_prior, l=(len(d) + 1)),
             observation_log_likelihood_function=
             bcd.gaussian_obs_log_likelihood,
             truncate=-50)
@@ -222,7 +226,17 @@ def nan_helper(y):
 
     return np.isnan(y), lambda z: z.nonzero()[0]
 
+"""Calculate posterior probabilities for the dependency structure
 
+Input:
+    - world
+    - experiences
+    - P_same
+    - alpha_prior
+    - model_prior
+Output:
+    - posteriors
+"""
 def calc_posteriors(world, experiences, P_same, alpha_prior, model_prior):
     posteriors = []
     for i, joint in enumerate(world.joints):
@@ -236,11 +250,11 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
                         use_change_points, alpha_prior, model_prior,
                         action_machine, location, action_sampling_fnc,
                         use_ros, use_joint_positions=False):
-    #writer = Writer(location)
-    widgets = [ Bar(), Percentage(),
-                " (Run #{}, PID {})".format(0,
-                                            multiprocessing.current_process().pid)]
-    progress = ProgressBar(maxval=N_actions+2, #fd=writer,
+    # writer = Writer(location)
+    widgets = [Bar(), Percentage(),
+               " (Run #{}, PID {})".format(0,
+                                           multiprocessing.current_process().pid)]
+    progress = ProgressBar(maxval=N_actions + 2,  # fd=writer,
                            widgets=widgets).start()
     progress.update(0)
     # init phase
@@ -265,8 +279,8 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     else:
         P_same = compute_p_same(P_cp)
 
-    # for j, joint in enumerate(world.joints):
-    #     locked_states[j] = action_machine.check_state(j)
+        # for j, joint in enumerate(world.joints):
+        #     locked_states[j] = action_machine.check_state(j)
 
         # add the experiences
         # new_experience = {'data': jpos, 'value': locked_states[j]}
@@ -282,7 +296,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     metadata = {'ChangePointDetection': use_change_points,
                 'Date': datetime.datetime.now(),
                 'Objective': objective_fnc.__name__,
-                #'World': world,
+                # 'World': world,
                 'ModelPrior': model_prior,
                 'AlphaPrior': alpha_prior,
                 'P_cp': P_cp,
@@ -296,8 +310,30 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     with open(filename, "w") as _file:
         cPickle.dump((data, metadata), _file)
 
+    # initial_data = pd.DataFrame(index=[-1])
+    # for n, p in enumerate([-1,-1,-1,-1,-1]):
+    #     initial_data["DesiredPos" + str(n)] = [p]
+    # initial_data["CheckedJoint"] = [-1]
+    #
+    # jpos_before = np.array([int(j.get_q()) for j in world.joints])
+    # for n, p in enumerate(jpos_before):
+    #     initial_data["RealPos" + str(n)] = [p]
+    #
+    # for n, joint in enumerate(world.joints):
+    #     initial_data["LSAfterAction" + str(n)] = [joint.is_locked()]
+    #
+    # for n, p in enumerate([1,1,1,1,1]):
+    #     initial_data["Posterior" + str(n)] = [p]
+    #     initial_data["Entropy" + str(n)] = [entropy(p)]
+    # data = data.append(initial_data)
+
     for idx in range(N_actions):
         current_data = pd.DataFrame(index=[idx])
+
+        lock_states_before = [joint.is_locked() for joint in world.joints]
+        for n, p in enumerate(lock_states_before):
+            current_data["LSBefore" + str(n)] = [p]
+
         # get best action according to objective function
         pos, checked_joint, moved_joint, value = \
             get_best_point(objective_fnc,
@@ -322,12 +358,15 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
         for n, p in enumerate(pos):
             current_data["DesiredPos" + str(n)] = [p]
-        current_data["CheckedJoint"] = [checked_joint]
+        current_data["MovedJoint"] = [moved_joint]
 
         # save the joint and locked states before the action
         locked_states_before = [joint.is_locked()
                                 for joint in world.joints]
         jpos_before = np.array([int(j.get_q()) for j in world.joints])
+
+        for n, p in enumerate(jpos_before):
+            current_data["RealPosBef" + str(n)] = [p]
 
         action_outcome = True
         if np.all(np.abs(pos - jpos_before) < .1):
@@ -350,7 +389,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
                          for joint in world.joints]
 
         for n, p in enumerate(locked_states):
-            current_data["LockingState" + str(n)] = [p]
+            current_data["LSAfter" + str(n)] = [p]
 
         # if the locked states changed the action was successful, if not,
         # it was a failure
@@ -375,7 +414,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
             current_data["Entropy" + str(n)] = [entropy(p)]
 
         data = data.append(current_data)
-        progress.update(idx+1)
+        progress.update(idx + 1)
 
         filename = generate_filename(metadata)
         with open(filename, "w") as _file:
@@ -391,14 +430,14 @@ def build_model_prior_simple(world, independent_prior):
     # the model prior is proportional to 1/distance between the joints
     model_prior = np.array([[0 if x == y
                              else independent_prior if x == n
-                             else 1/abs(x-y)
-                             for x in range(n+1)]
-                            for y in range(n)])
+                             else 1 / abs(x - y)
+                             for x in range(n + 1)]
+                             for y in range(n)])
 
     # normalize
     model_prior[:, :-1] = ((model_prior.T[:-1, :] /
                             np.sum(model_prior[:, :-1], 1)).T *
-                           (1-independent_prior))
+                           (1 - independent_prior))
 
     return model_prior
 
@@ -409,16 +448,16 @@ def build_model_prior_3d(world, independent_prior):
 
     model_prior = np.array([[0 if x == y
                              else independent_prior
-                             if x == n
-                             else 1/np.linalg.norm(
-                                 np.asarray(j[x].position)-np.asarray(j[y].position)
-                             )
-                             for x in range(n+1)]
+    if x == n
+    else 1 / np.linalg.norm(
+        np.asarray(j[x].position) - np.asarray(j[y].position)
+    )
+                             for x in range(n + 1)]
                             for y in range(n)])
     # normalize
     model_prior[:, :-1] = ((model_prior.T[:-1, :] /
                             np.sum(model_prior[:, :-1], 1)).T *
-                           (1-independent_prior))
+                           (1 - independent_prior))
     return model_prior
 
 
@@ -448,8 +487,15 @@ def run_experiment(args):
     independent_prior = .7
 
     # the model prior is proportional to 1/distance between the joints
-    #if args.use_joint_positions:
+    # if args.use_joint_positions:
     model_prior = build_model_prior_3d(world, independent_prior)
+
+    print 'model_prior'
+    print model_prior
+
+    initial_entropy = [entropy(p) for p in model_prior]
+    print 'Initial entropy'
+    print initial_entropy
     # else:
     #     model_prior = build_model_prior_simple(world, independent_prior)
 
@@ -467,7 +513,7 @@ def run_experiment(args):
     elif args.objective == "heuristic_proximity":
         objective = heuristic_proximity
     else:
-        raise Exception("You tried to choose an objective that doesn't exist: "+args.objective)
+        raise Exception("You tried to choose an objective that doesn't exist: " + args.objective)
 
     if args.joint_state == "small":
         action_sampling_fnc = small_joint_state_sampling
@@ -535,6 +581,7 @@ def main():
     run_experiment(args)
 
     print(term.clear)
+
 
 if __name__ == '__main__':
     main()

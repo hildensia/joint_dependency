@@ -107,10 +107,20 @@ def model_posterior(experiences, p_same, alpha_prior, model_prior):
              joint (un-) locks the observed joint. The last entry give the
              probability of an independent model.
     """
+
+    #Note: 1 model is that a joint is locking this joint
+
+    #Number of models is given by the size of the prior over models
     num_models = model_prior.shape[0]
+
+    #Initialize the vector of likelihoods to have n=numJoints+1 elements
     _likelihood = np.zeros((model_prior.shape[0],))
+
+    #Estimating the likelihood of the independent model (given exps and alpha)
     _likelihood[-1] = model_prior[-1] * likelihood_independent(experiences,
                                                               alpha_prior)
+
+    #Estimating the likelihood that joint i locks this joint (given exps and alpha)
     for dep_joint in range(num_models - 1):
         _likelihood[dep_joint] = model_prior[dep_joint] * \
                                 likelihood_dependent(experiences, dep_joint,

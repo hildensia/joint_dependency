@@ -5,6 +5,7 @@ import random
 from enum import Enum
 from joint_dependency.recorder import Record
 
+import matplotlib.pyplot as plt
 
 def get_state(q, states):
     i = 0
@@ -97,6 +98,10 @@ class World(object):
         self.time += dt
         for joint in self.joints:
             joint.step(dt)
+
+        for joint in self.joints:
+            joint.unlock()
+
         self._inform_listeners(dt)
 
     def get_index(self):
@@ -254,7 +259,8 @@ class Locker(object):
             if self.locked.is_locked():
                 self.locked.unlock()
 
-
+#Multilocker means that there could be multiple regions of the joint
+#space of the master where the slave is unlocked
 class MultiLocker(object):
     def __init__(self, world, master, slave, locks):
         """
@@ -271,16 +277,16 @@ class MultiLocker(object):
         self.locks = locks
 
     def step(self, dt):
-        is_locked = self.slave.is_locked()
+        #is_locked = self.slave.is_locked()
         should_be_locked = False
         for lock in self.locks:
             if lock[0] <= self.master.q <= lock[1]:
                 should_be_locked = True
 
-        if is_locked and not should_be_locked:
-            # print("unlock")
-            self.slave.unlock()
-        elif not is_locked and should_be_locked:
+        # if is_locked and not should_be_locked:
+        #     # print("unlock")
+        #     self.slave.unlock()
+        if should_be_locked:
             # print("lock")
             self.slave.lock()
 
@@ -465,7 +471,7 @@ def create_world(n=3):
     return world
 
 # FIXME find better location
-lockbox_joint_positions = map( np.array, [
+lockbox_joint_positions_real = map( np.array, [
     [6, 1.2, 0],
     [6.8, 4, 0],
     [6.8, 6.5, 0],
@@ -473,8 +479,33 @@ lockbox_joint_positions = map( np.array, [
     [2.2, 7, 0]
 ])
 
+lockbox_joint_positions_malicious = map( np.array, [
+    [6, 1.2, 0],
+    [6.8, 4, 0],
+    [6.8, 6.5, 0],
+    [6.1, 1.2, 0],
+    [6.05, 1.2, 0]
+])
+
+lockbox_joint_positions = lockbox_joint_positions_real
+
 def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False, 
                    use_simple_locking_state=False):
+
+    plt.figure()
+    lockbox_joint_positions_np = np.array(lockbox_joint_positions)
+
+    plt.scatter(lockbox_joint_positions_np[:,0], lockbox_joint_positions_np[:,1])
+    labels = ['0', '1', '2', '3', '4']
+    for label, x, y in zip(labels, lockbox_joint_positions_np[:, 0], lockbox_joint_positions_np[:, 1]):
+        plt.annotate(
+            label,
+            xy=(x, y), xytext=(-20, 20),
+            textcoords='offset points', ha='right', va='bottom',
+            bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
+            arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0'))
+    plt.show()
+
     if noise is None:
         noise = {'q': 10e-6, 'vel': 10e-6}
 
@@ -509,8 +540,10 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
         if i > 0:
             MultiLocker(world, master=world.joints[i - 1],
                         slave=world.joints[i], locks=locks)
+            MultiLocker(world, master=world.joints[i],
+                        slave=world.joints[i-1], locks=[[160,180]])
 
-        print("Joint {}{} opens at {} - {}".format(i, 
+        print("Joint {}{} opens at {} - {}. Initially at ".format(i,
               (" [%.1f, %.1f, %.1f]" % tuple(jpos.tolist()) ) if jpos is not None else "",
               lower[1], upper[0]))
 
@@ -527,4 +560,9 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
     # action_machine = ActionMachine(world, controllers, tau)
 
     world.step(.1)
+
+    for joint in world.joints:
+        print "Joint initial config: ", joint.get_q()
+        print "Joint initial locking state: ", joint.is_locked()
+
     return world
