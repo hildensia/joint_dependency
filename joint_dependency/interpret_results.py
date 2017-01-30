@@ -90,7 +90,7 @@ def print_actions(df, num_joints=None):
     if num_joints is None:
         num_joints = determine_num_joints(df, None)
 
-    print(df[[u'MovedJoint'] +
+    print(df[[u'DesJToMove'] +
              ['RealPosBef{}'.format(j) for j in range(num_joints)] +
              ['DesiredPos{}'.format(j) for j in range(num_joints)] +
              ['LSBefore{}'.format(j) for j in range(num_joints)]
