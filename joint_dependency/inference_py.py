@@ -49,6 +49,8 @@ def likelihood(experiences, alpha_prior):
     for e in experiences:
         n[e['value']] += 1
     N = len(experiences)
+
+    #Equation 5 in "Active Exploration of Joint Dependency Structures"
     lnp = gammaln(A) - gammaln(N+A) + np.sum(gammaln(n + alpha_prior) -
                                              gammaln(alpha_prior))
     return np.exp(lnp)
@@ -82,7 +84,9 @@ def likelihood_independent(experiences, alpha_prior):
     Compute the likelihood of the experiences for the dependency model, where
     no dependency to the current joint exists.
 
-    :param experiences: Experiences made so far (dictionary)
+    :param experiences: Experiences made so far (list of dictionaries, each dictionary has 2 entries: 'data'
+    that contains the joint states of all the joints in this experience, and 'value' that is true or false
+    depending on if this joint was locked or not)
     :param alpha_prior: The prior over the different joint states
     :return: The likelihood of the experiences conditioned on no joint
              dependency
@@ -110,7 +114,7 @@ def model_posterior(experiences, p_same, alpha_prior, model_prior):
 
     #Note: 1 model is that a joint is locking this joint
 
-    #Number of models is given by the size of the prior over models
+    #Number of models is given by the size of the prior over models (it should be num joints + 1 for the independent)
     num_models = model_prior.shape[0]
 
     #Initialize the vector of likelihoods to have n=numJoints+1 elements
