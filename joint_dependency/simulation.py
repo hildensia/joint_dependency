@@ -297,15 +297,17 @@ class ActionMachine(object):
         self.controllers = controller
         self.tau = tau
 
+    # Returns True if joint moved, and false if not (because it is locked)
+    # This is the most realistic jointLockedSensor
     def run_action(self, pos, joint=None):
         self.controllers[joint].move_to(pos[joint])
         while not self.controllers[joint].is_done():
             self.world.step(self.tau)
+
         if abs(self.world.joints[joint].q - pos[joint]) < 0.5:
             return True
         else:
             return False
-        # todo: return True if joint moved, and false if not
 
     def check_state(self, joint):
         old_pos = self.world.joints[joint].q
