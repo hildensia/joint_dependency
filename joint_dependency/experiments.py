@@ -43,6 +43,8 @@ from blessings import Terminal
 from copy import deepcopy
 import time
 
+import matplotlib.pyplot as mlp
+
 term = Terminal()
 
 
@@ -286,6 +288,11 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         # new_experience = {'data': jpos, 'value': locked_states[j]}
         # experiences[j].append(new_experience)
 
+    print P_same[0]
+
+    mlp.figure()
+    mlp.matshow(P_same[0], interpolation='nearest')
+    mlp.show()
     # perform actions as long the entropy of all model distributions is still
     # big
     # while (np.array([entropy(p) for p in posteriors]) > .25).any():
@@ -335,7 +342,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
             current_data["LSBefore" + str(n)] = [p]
 
         # get best action according to objective function
-        pos, checked_joint, moved_joint, value = \
+        desired_joint_configurations, checked_joint, desired_joint_to_move, value = \
             get_best_point(objective_fnc,
                            experiences,
                            P_same,
@@ -349,16 +356,16 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
                            idx_last_failures,
                            use_joint_positions)
 
-        if moved_joint is None:
+        if desired_joint_to_move is None:
             print("We finished the exploration")
             print("This usually happens when you use the heuristic_proximity "
                   "that has as objective to estimate the dependency structure "
                   "and not to reduce the entropy")
             break
 
-        for n, p in enumerate(pos):
+        for n, p in enumerate(desired_joint_configurations):
             current_data["DesiredPos" + str(n)] = [p]
-        current_data["MovedJoint"] = [moved_joint]
+        current_data["DesJToMove"] = [desired_joint_to_move]
 
         # save the joint and locked states before the action
         locked_states_before = [joint.is_locked()
@@ -368,25 +375,36 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         for n, p in enumerate(jpos_before):
             current_data["RealPosBef" + str(n)] = [p]
 
-        action_outcome = True
-        if np.all(np.abs(pos - jpos_before) < .1):
+        desired_joint_to_move_was_unlocked = True
+        if np.all(np.abs(desired_joint_configurations - jpos_before) < .1):
             # if we want a no-op don't actually call the robot
-            jpos = pos
+            jpos = desired_joint_configurations
 
         else:
             # run best action, i.e. move joints to desired position
-            action_outcome = action_machine.run_action(pos, moved_joint)
+            desired_joint_to_move_was_unlocked = action_machine.run_action(desired_joint_configurations, desired_joint_to_move)
 
             # get real position after action (PD-controllers aren't perfect)
-            jpos = np.array([int(j.get_q()) for j in world.joints])
+            final_joint_configurations = np.array([int(j.get_q()) for j in world.joints])
 
-        for n, p in enumerate(jpos):
+        for n, p in enumerate(final_joint_configurations):
             current_data["RealPos" + str(n)] = [p]
 
         # save the locked states after the action
         # test whether the joints are locked or not
+        ##################################################
         locked_states = [joint.is_locked()
                          for joint in world.joints]
+
+
+        #measured_locked_state = locked_states[desired_joint_to_move]
+        measured_locked_state = not desired_joint_to_move_was_unlocked
+
+        # Check that 'not desired_joint_to_move_was_unlocked' is always == locked_states[desired_joint_to_move]
+        if locked_states[desired_joint_to_move] != (not desired_joint_to_move_was_unlocked):
+            print "Error: locked_states[desired_joint_to_move] != (not desired_joint_to_move_was_unlocked)"
+            exit(-1)
+
 
         for n, p in enumerate(locked_states):
             current_data["LSAfter" + str(n)] = [p]
@@ -396,15 +414,19 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         # CORRECTION: it could be that a joint moves but it does not unlock a
         # mechanism. Then it won't be a failure nor a success. We just do not
         # add it no any list
-        if action_outcome:
+        if desired_joint_to_move_was_unlocked:
             idx_last_failures = []
-            idx_last_successes.append(moved_joint)
+            idx_last_successes.append(desired_joint_to_move)
         else:
-            idx_last_failures.append(moved_joint)
+            idx_last_failures.append(desired_joint_to_move)
 
         # add new experience
-        new_experience = {'data': jpos, 'value': locked_states[moved_joint]}
-        experiences[moved_joint].append(new_experience)
+        new_experience = {'data': final_joint_configurations, 'value': measured_locked_state}
+        #print new_experience
+        experiences[desired_joint_to_move].append(new_experience)
+
+        print "Experiences of joint ", desired_joint_to_move
+        print experiences[desired_joint_to_move]
 
         # calculate model posterior
         posteriors = calc_posteriors(world, experiences, P_same, alpha_prior,
