@@ -512,7 +512,8 @@ def run_experiment(args):
     else:
         world = create_lockbox(
             use_joint_positions=args.use_joint_positions,
-            use_simple_locking_state=args.use_simple_locking_state)
+            use_simple_locking_state=args.use_simple_locking_state,
+            lockboxfile=args.lockboxfile)
         controllers = []
         for j, _ in enumerate(world.joints):
             controllers.append(Controller(world, j))
@@ -609,6 +610,8 @@ def main():
     parser.add_argument("--use_simple_locking_state", action='store_true',
                         help="Don't randomize the locking configuration, but "
                              "have joint limits lock other joints")
+    parser.add_argument("-l", "--lockboxfile", type=str, default=None,
+                        help="A file that contains a lock-box specification")
 
     args = parser.parse_args()
 
