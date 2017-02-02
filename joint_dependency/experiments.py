@@ -289,9 +289,9 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
     print P_same[0]
 
-    mlp.figure()
-    mlp.matshow(P_same[0], interpolation='nearest')
-    mlp.show()
+    #mlp.matshow(P_same[0], interpolation='nearest')
+    #mlp.show()
+
     # perform actions as long the entropy of all model distributions is still
     # big
     # while (np.array([entropy(p) for p in posteriors]) > .25).any():
@@ -306,7 +306,8 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
                 'ModelPrior': model_prior,
                 'AlphaPrior': alpha_prior,
                 'P_cp': P_cp,
-                'P_same': P_same}
+                'P_same': P_same,
+                'DependencyGT' : world.dependency_structure_gt}
 
     idx_last_successes = []
     idx_last_failures = []
@@ -436,19 +437,19 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
 
         #NEW: Compare the posterior and the ground truth for the dependency structure:
-        print 'Posterior'
-        print np.array(posteriors)
-        print 'GT'
-        print world.dependency_structure_gt
+        #print 'Posterior'
+        #print np.array(posteriors)
+        #print 'GT'
+        #print world.dependency_structure_gt
 
         kls = []
-        for (pr, gtr) in zip(np.array(posteriors), world.dependency_structure_gt):
-            kls += [entropy(gtr, pr)]
+        for n, (pr, gtr) in enumerate(zip(np.array(posteriors), world.dependency_structure_gt)):
+            kld = entropy(gtr, pr)
+            kls += [kld]
+            current_data["KLD" + str(n)] = kld
 
         print 'Kullback-Leibler divergences'
         print kls
-
-
         data = data.append(current_data)
         progress.update(idx + 1)
 
@@ -615,11 +616,11 @@ def main():
 
     args = parser.parse_args()
 
-    print(term.clear)
+    #print(term.clear)
 
     run_experiment(args)
 
-    print(term.clear)
+    #print(term.clear)
 
 
 if __name__ == '__main__':
