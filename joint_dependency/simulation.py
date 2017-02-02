@@ -4,6 +4,7 @@ import pandas as pd
 import random
 from enum import Enum
 from joint_dependency.recorder import Record
+import yaml
 
 import matplotlib.pyplot as plt
 
@@ -472,27 +473,43 @@ def create_world(n=3):
 
     return world
 
-# FIXME find better location
-lockbox_joint_positions_real = map( np.array, [
-    [6, 1.2, 0],
-    [6.8, 4, 0],
-    [6.8, 6.5, 0],
-    [4, 6.5, 0],
-    [2.2, 7, 0]
-])
 
-lockbox_joint_positions_malicious = map( np.array, [
-    [6, 1.2, 0],
-    [6.8, 4, 0],
-    [6.8, 6.5, 0],
-    [6.1, 1.2, 0],
-    [6.05, 1.2, 0]
-])
-
-lockbox_joint_positions = lockbox_joint_positions_real
 
 def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False, 
-                   use_simple_locking_state=False):
+                   use_simple_locking_state=False, lockboxfile=None):
+    # # FIXME find better location
+    # lockbox_joint_positions_real = map(np.array, [
+    #     [6, 1.2, 0],
+    #     [6.8, 4, 0],
+    #     [6.8, 6.5, 0],
+    #     [4, 6.5, 0],
+    #     [2.2, 7, 0]
+    # ])
+    #
+    # lockbox_joint_positions_malicious = map(np.array, [
+    #     [6, 1.2, 0],
+    #     [6.8, 4, 0],
+    #     [6.8, 6.5, 0],
+    #     [6.1, 1.2, 0],
+    #     [6.05, 1.2, 0]
+    # ])
+    #
+    # lockbox_joint_positions = lockbox_joint_positions_real
+    #
+    # print lockbox_joint_positions
+
+    #load a lock-box specification from a yaml-file in case lockboxfile is given
+    if lockboxfile != None:
+        with open(lockboxfile, 'r') as stream:
+            lockbox_specification = yaml.load(stream)
+            lockbox_joint_positions = np.array(lockbox_specification['joint_positions'])
+            lockbox_joint_states = lockbox_specification['joint_states']
+            lockbox_joint_dampings = lockbox_specification['joint_dampings']
+            lockbox_joint_limits = lockbox_specification['joint_limits']
+            lockbox_joint_lockers = lockbox_specification['joint_lockers']
+    else:
+        print "No file to load"
+
 
     plt.figure()
     lockbox_joint_positions_np = np.array(lockbox_joint_positions)
@@ -516,38 +533,48 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
         
     world = World([])
 
-    limits = (0, 180)
+    #limits = (0, 180)
 
     for i in range(num_of_joints):
-        dampings = [15, 200, 15]
+        #dampings = [15, 200, 15]
+        #
+        # if use_simple_locking_state:
+        #     m = 170.
+        # else:
+        #     m = random.randint(10, 170)
+        #
+        #
+        # lower = (-1, m - 10)
+        # upper = (m + 41, 281)
+        # #
+        # if i > 0:
+        #     locks = [lower, upper]
 
-        if use_simple_locking_state:
-            m = 170.
-        else:
-            m = random.randint(10, 170)
+        #jpos = lockbox_joint_positions[i]
         
-
-        lower = (-1, m - 10)
-        upper = (m + 41, 281)
-
-        if i > 0:
-            locks = [lower, upper]
-
-        jpos = lockbox_joint_positions[i]
-        
-        world.add_joint(Joint([lower[1], upper[0]], dampings,
-                                   limits=limits, noise=noise,
-                                   position=jpos 
+        world.add_joint(Joint(lockbox_joint_states[i],
+                              lockbox_joint_dampings[i],
+                              limits=lockbox_joint_limits[i],
+                              noise=noise,
+                              position=lockbox_joint_positions[i]
                                    ))
-        if i > 0:
-            MultiLocker(world, master=world.joints[i - 1],
-                        slave=world.joints[i], locks=locks)
-            MultiLocker(world, master=world.joints[i],
-                        slave=world.joints[i-1], locks=[[160,180]])
+
+
+        # if i > 0:
+        #     MultiLocker(world, master=world.joints[i - 1],
+        #                 slave=world.joints[i], locks=locks)
+        #     MultiLocker(world, master=world.joints[i],
+        #                 slave=world.joints[i-1], locks=[[160,180]])
 
         print("Joint {}{} opens at {} - {}. Initially at ".format(i,
-              (" [%.1f, %.1f, %.1f]" % tuple(jpos.tolist()) ) if jpos is not None else "",
-              lower[1], upper[0]))
+              (" [%.1f, %.1f, %.1f]" % tuple(lockbox_joint_positions[i].tolist()) ) if lockbox_joint_positions[i] is not None else "",
+                                                                  lockbox_joint_states[i][0], lockbox_joint_states[i][1]))
+    for i in range(num_of_joints):
+        for idx_master, intervals_master in lockbox_joint_lockers[i].items():
+            MultiLocker(world,
+                        master=world.joints[idx_master],
+                        slave=world.joints[i],
+                        locks=intervals_master)
 
     # MultiLocker(world, master=world.joints[2], slave=world.joints[1],
     #             locks=[(-1, -1), (20, 180)])
