@@ -47,7 +47,6 @@ import matplotlib.pyplot as mlp
 
 term = Terminal()
 
-
 class Writer(object):
     """Create an object with a write method that writes to a
     specific place on the screen, defined at instantiation.
@@ -425,8 +424,8 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         #print new_experience
         experiences[desired_joint_to_move].append(new_experience)
 
-        print "Experiences of joint ", desired_joint_to_move
-        print experiences[desired_joint_to_move]
+        #print "Experiences of joint ", desired_joint_to_move
+        #print experiences[desired_joint_to_move]
 
         # calculate model posterior
         posteriors = calc_posteriors(world, experiences, P_same, alpha_prior,
@@ -434,6 +433,21 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         for n, p in enumerate(posteriors):
             current_data["Posterior" + str(n)] = [p]
             current_data["Entropy" + str(n)] = [entropy(p)]
+
+
+        #NEW: Compare the posterior and the ground truth for the dependency structure:
+        print 'Posterior'
+        print np.array(posteriors)
+        print 'GT'
+        print world.dependency_structure_gt
+
+        kls = []
+        for (pr, gtr) in zip(np.array(posteriors), world.dependency_structure_gt):
+            kls += [entropy(gtr, pr)]
+
+        print 'Kullback-Leibler divergences'
+        print kls
+
 
         data = data.append(current_data)
         progress.update(idx + 1)
