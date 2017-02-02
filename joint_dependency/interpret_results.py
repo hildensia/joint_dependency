@@ -23,6 +23,8 @@ def determine_num_joints(df, _):
 def plot_locking_states(df, meta, num_joints=None):
 
     marker_style = dict(linestyle=':', marker='o', s=100,)
+
+    marker_style2 = dict(linestyle=':', marker='o', s=100, )
     
     def format_axes(ax):
         ax.margins(0.2)
@@ -41,37 +43,48 @@ def plot_locking_states(df, meta, num_joints=None):
     for t in df.index:
         lock_states = df.loc[t][ [ "LSAfter%d" % k for k in range(num_joints) ] ].tolist()
         c = ["orange" if l else "k" for l in lock_states]
-        
+
+        if t in df.index:
+            ax.scatter((t + 0.1), df.loc[t][ "DesJToMove"] , color = 'r',linestyle=':', marker='o', s=200)
+
         ax.scatter((t+0.1) * points, range(num_joints), color=c, **marker_style)
+
         format_axes(ax)
-    ax.set_title('Locking state evolution')
-    ax.set_xlabel("t")
-    
+    ax.set_title('Locked state (after joint RED was interacted)')
+
+    for t in df.index:
+        ax.text(t-(0.2*(t>9)), -0.5, "%d" % t)
+
     plt.plot()
 
 def plot_entropy(df, meta, num_joints=None):
     if num_joints is None:
         num_joints = determine_num_joints(df)
 
-    plt.figure()
-    plt.title('Entropy')
+    #plt.figure()
+    #plt.title('Entropy')
+
+    f, axarr = plt.subplots(2,1)
+    axarr[0].set_title('Entropy')
     for j in range(num_joints):
         var_name="Entropy%d"%j
-        plt.plot(df[var_name], label=var_name)
-    plt.legend()
-    
+        axarr[0].plot(df[var_name], label=var_name)
+    axarr[0].legend()
+
+    return axarr
 
 def plot_dependency_posterior_over_time(df, meta, num_joints=None):
     if num_joints is None:
         num_joints = determine_num_joints(df)
 
     #plt.figure()
+    f, axarr = plt.subplots(num_joints, 1)
     for joint in range(num_joints):
         p_array = np.zeros((num_joints+1, np.array(df["Posterior%d" % joint].as_matrix()).shape[0]))
         for t, arr in enumerate(np.array(df["Posterior%d" % joint].as_matrix())):
             p_array[:,t] = arr
-        plt.matshow(p_array, interpolation='nearest')
-        plt.title('Dependency posterior for joint %d'%joint)
+        axarr[joint].matshow(p_array, interpolation='nearest')
+        axarr[joint].set_title('Dependency posterior for joint %d'%joint)
 
 
 def plot_dependency_posterior(df, meta, t, num_joints=None):
@@ -79,9 +92,13 @@ def plot_dependency_posterior(df, meta, t, num_joints=None):
         num_joints = determine_num_joints(df)
 
     #plt.figure()
+    f, axarr = plt.subplots(1,2)
     posterior=np.array([df["Posterior%d"%j].iloc[t] for j in range(num_joints)])
-    plt.matshow(posterior, interpolation='nearest')
-    plt.title('Dependency posterior (joint [row] is locked by joint [col])')
+    axarr[0].matshow(posterior, interpolation='nearest')
+    axarr[0].set_title('Dependency posterior (joint [row] is locked by joint [col])')
+
+    axarr[1].matshow(meta["DependencyGT"], interpolation='nearest')
+    axarr[1].set_title('GT Dependency posterior (joint [row] is locked by joint [col])')
 
 
 def print_actions(df, num_joints=None):
@@ -96,6 +113,19 @@ def print_actions(df, num_joints=None):
              ['LSBefore{}'.format(j) for j in range(num_joints)]
              #['LSAfter{}'.format(j) for j in range(num_joints)]
             ])
+
+def plot_kld(df, meta, num_joints=None, axarr=None):
+    if num_joints is None:
+        num_joints = determine_num_joints(df)
+
+    #plt.figure()
+    #plt.title('Kullback-Leibler divergence')
+
+    axarr[1].set_title('Kullback-Leibler divergence')
+    for j in range(num_joints):
+        var_name="KLD%d"%j
+        axarr[1].plot(df[var_name], label=var_name)
+    axarr[1].legend()
 
 #Index([u'DesiredPos0', u'DesiredPos1', u'DesiredPos2', u'DesiredPos3',
 #       u'DesiredPos4', u'CheckedJoint', u'RealPos0', u'RealPos1', u'RealPos2',
@@ -125,9 +155,10 @@ if __name__ == "__main__":
     print_actions(df)
 
     plot_locking_states(df, meta, num_joints=determine_num_joints(df, meta))
-    plot_entropy(df,meta, num_joints=determine_num_joints(df, meta))
+    arr = plot_entropy(df,meta, num_joints=determine_num_joints(df, meta))
     plot_dependency_posterior(df,meta,-1, num_joints=determine_num_joints(df, meta))
 
     plot_dependency_posterior_over_time(df,meta,num_joints=determine_num_joints(df, meta))
+    plot_kld(df, meta, num_joints=determine_num_joints(df, meta), axarr = arr)
 
     plt.show()
