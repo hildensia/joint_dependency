@@ -6,6 +6,8 @@ from enum import Enum
 from joint_dependency.recorder import Record
 
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+
 
 def get_state(q, states):
     i = 0
@@ -91,6 +93,7 @@ class World(object):
         self.joints = joints
         self.listeners = []
         self.time = 0
+        self.dependency_structure_gt = []
         for joint in joints:
             joint.world = self
 
@@ -120,8 +123,10 @@ class World(object):
     def add_joint(self, joint):
         self.joints.append(joint)
         joint.world = self
-        joint.index = len(self.joints)-1
+        joint.index = len(self.joints) - 1
 
+    def set_dependency_structure_gt(self, ds_gt):
+        self.dependency_structure_gt = ds_gt
 
 class Controller(object):
     def __init__(self, world, joint_idx):
@@ -213,7 +218,7 @@ class PositionController(object):
         if self.goal_pos is None:
             return True
         if (abs(self.q - self.goal_pos) < self.q_eps and
-                abs(self.v) < self.v_eps):
+                    abs(self.v) < self.v_eps):
             return True
         if self.joint.is_locked():
             return True
@@ -259,8 +264,9 @@ class Locker(object):
             if self.locked.is_locked():
                 self.locked.unlock()
 
-#Multilocker means that there could be multiple regions of the joint
-#space of the master where the slave is unlocked
+
+# Multilocker means that there could be multiple regions of the joint
+# space of the master where the slave is unlocked
 class MultiLocker(object):
     def __init__(self, world, master, slave, locks):
         """
@@ -277,7 +283,7 @@ class MultiLocker(object):
         self.locks = locks
 
     def step(self, dt):
-        #is_locked = self.slave.is_locked()
+        # is_locked = self.slave.is_locked()
         should_be_locked = False
         for lock in self.locks:
             if lock[0] <= self.master.q <= lock[1]:
@@ -348,7 +354,7 @@ def create_furniture(furniture, *args, **kwargs):
 
 
 def create_drawer_with_key(world, noise, limits):
-    open_at = np.random.randint(limits[0][0]+20, limits[0][1]-20)
+    open_at = np.random.randint(limits[0][0] + 20, limits[0][1] - 20)
     open_d = (open_at - 10, open_at + 10)
 
     # The 'handle'
@@ -369,10 +375,10 @@ def create_drawer_with_handle(world, noise, limits):
     open_upper = np.random.uniform() > .5
     if open_upper:
         open_d = (limits[0][1] - 20, limits[0][1])
-        locked_d = (limits[0][0], limits[0][1]-20)
+        locked_d = (limits[0][0], limits[0][1] - 20)
     else:
-        open_d = (limits[0][0], limits[0][0]+20)
-        locked_d = (limits[0][0]+20, limits[0][1])
+        open_d = (limits[0][0], limits[0][0] + 20)
+        locked_d = (limits[0][0] + 20, limits[0][1])
 
     # The 'handle'
     states = [open_d[0], open_d[1]]
@@ -389,7 +395,7 @@ def create_drawer_with_handle(world, noise, limits):
 
 
 def create_cupboard_with_key(world, noise, limits):
-    open_at = np.random.randint(limits[0][0]+20, limits[0][1]-20)
+    open_at = np.random.randint(limits[0][0] + 20, limits[0][1] - 20)
     open_d = (open_at - 10, open_at + 10)
 
     # The 'handle'
@@ -410,10 +416,10 @@ def create_cupboard_with_handle(world, noise, limits):
     open_upper = np.random.uniform() > .5
     if open_upper:
         open_d = (limits[0][1] - 20, limits[0][1])
-        locked_d = (limits[0][0], limits[0][1]-20)
+        locked_d = (limits[0][0], limits[0][1] - 20)
     else:
-        open_d = (limits[0][0], limits[0][0]+20)
-        locked_d = (limits[0][0]+20, limits[0][1])
+        open_d = (limits[0][0], limits[0][0] + 20)
+        locked_d = (limits[0][0] + 20, limits[0][1])
 
     # The 'handle'
     states = [open_d[0], open_d[1]]
@@ -430,16 +436,16 @@ def create_cupboard_with_handle(world, noise, limits):
 
 
 def create_window(world, noise, limits):
-    tilt_at = (limits[0][0]+limits[0][1])/2
+    tilt_at = (limits[0][0] + limits[0][1]) / 2
     tilt_d = [(limits[0][0], tilt_at - 10), (limits[0][1], tilt_at + 10)]
 
     open_upper = np.random.uniform() > .5
     if open_upper:
         open_d = (limits[0][1] - 20, limits[0][1])
-        locked_d = (limits[0][0], limits[0][1]-20)
+        locked_d = (limits[0][0], limits[0][1] - 20)
     else:
-        open_d = (limits[0][0], limits[0][0]+20)
-        locked_d = (limits[0][0]+20, limits[0][1])
+        open_d = (limits[0][0], limits[0][0] + 20)
+        locked_d = (limits[0][0] + 20, limits[0][1])
 
     # The 'handle'
     states = [limits[0][0], tilt_d[0][1], tilt_d[1][0], limits[0][1]]
@@ -472,8 +478,9 @@ def create_world(n=3):
 
     return world
 
+
 # FIXME find better location
-lockbox_joint_positions_real = map( np.array, [
+lockbox_joint_positions_real = map(np.array, [
     [6, 1.2, 0],
     [6.8, 4, 0],
     [6.8, 6.5, 0],
@@ -481,7 +488,7 @@ lockbox_joint_positions_real = map( np.array, [
     [2.2, 7, 0]
 ])
 
-lockbox_joint_positions_malicious = map( np.array, [
+lockbox_joint_positions_malicious = map(np.array, [
     [6, 1.2, 0],
     [6.8, 4, 0],
     [6.8, 6.5, 0],
@@ -491,32 +498,35 @@ lockbox_joint_positions_malicious = map( np.array, [
 
 lockbox_joint_positions = lockbox_joint_positions_real
 
-def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False, 
-                   use_simple_locking_state=False):
 
-    plt.figure()
+def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
+                   use_simple_locking_state=False):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, aspect='equal')
     lockbox_joint_positions_np = np.array(lockbox_joint_positions)
 
-    plt.scatter(lockbox_joint_positions_np[:,0], lockbox_joint_positions_np[:,1])
+    ax.scatter(lockbox_joint_positions_np[:, 0], lockbox_joint_positions_np[:, 1])
     labels = ['0', '1', '2', '3', '4']
     for label, x, y in zip(labels, lockbox_joint_positions_np[:, 0], lockbox_joint_positions_np[:, 1]):
-        plt.annotate(
+        ax.annotate(
             label,
             xy=(x, y), xytext=(-20, 20),
             textcoords='offset points', ha='right', va='bottom',
             bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
             arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0'))
-    plt.show()
 
     if noise is None:
         noise = {'q': 10e-6, 'vel': 10e-6}
 
     if use_joint_positions:
-        assert(len(lockbox_joint_positions) >= num_of_joints)
-        
+        assert (len(lockbox_joint_positions) >= num_of_joints)
+
     world = World([])
 
     limits = (0, 180)
+
+    # Compute the locking depency ground truth:
+    dependency_structure_gt = np.zeros((num_of_joints, num_of_joints + 1))
 
     for i in range(num_of_joints):
         dampings = [15, 200, 15]
@@ -525,7 +535,6 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
             m = 170.
         else:
             m = random.randint(10, 170)
-        
 
         lower = (-1, m - 10)
         upper = (m + 41, 281)
@@ -534,20 +543,48 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
             locks = [lower, upper]
 
         jpos = lockbox_joint_positions[i]
-        
+
         world.add_joint(Joint([lower[1], upper[0]], dampings,
-                                   limits=limits, noise=noise,
-                                   position=jpos 
-                                   ))
+                              limits=limits, noise=noise,
+                              position=jpos
+                              ))
         if i > 0:
             MultiLocker(world, master=world.joints[i - 1],
                         slave=world.joints[i], locks=locks)
+            patch1 = mpl.patches.FancyArrowPatch(lockbox_joint_positions_np[i - 1, 0:2], lockbox_joint_positions_np[i, 0:2],
+                                                 connectionstyle='arc3, rad=0.7', arrowstyle = 'simple', color='b',
+                                                 mutation_scale=20)
+            dependency_structure_gt[i, i-1] = 1
+
+            ax.add_patch(patch1)
+
             MultiLocker(world, master=world.joints[i],
-                        slave=world.joints[i-1], locks=[[160,180]])
+                        slave=world.joints[i - 1], locks=[[160, 180]])
+            patch2 = mpl.patches.FancyArrowPatch(lockbox_joint_positions_np[i, 0:2], lockbox_joint_positions_np[i-1, 0:2],
+                                                 connectionstyle='arc3, rad=0.7', arrowstyle = 'simple', color='r',
+                                                 mutation_scale=20)
+            ax.add_patch(patch2)
+            dependency_structure_gt[i-1, i] = 1
 
         print("Joint {}{} opens at {} - {}. Initially at ".format(i,
-              (" [%.1f, %.1f, %.1f]" % tuple(jpos.tolist()) ) if jpos is not None else "",
-              lower[1], upper[0]))
+                                                                  (" [%.1f, %.1f, %.1f]" % tuple(
+                                                                      jpos.tolist())) if jpos is not None else "",
+                                                                  lower[1], upper[0]))
+
+    #Compute the locking depency ground truth:
+    for row in dependency_structure_gt:
+        sum_row = np.sum(row)
+        if sum_row == 0:
+            row[num_of_joints] = 1
+        else:
+            row /= sum_row
+
+    print 'Ground truth for the dependencty structure:'
+    print dependency_structure_gt
+
+    world.set_dependency_structure_gt(dependency_structure_gt)
+
+    plt.show()
 
     # MultiLocker(world, master=world.joints[2], slave=world.joints[1],
     #             locks=[(-1, -1), (20, 180)])
