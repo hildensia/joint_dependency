@@ -506,6 +506,7 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
     if lockboxfile != None:
         with open(lockboxfile, 'r') as stream:
             lockbox_specification = yaml.load(stream)
+            num_of_joints = lockbox_specification['n_joints']
             lockbox_joint_positions = np.array(lockbox_specification['joint_positions'])
             lockbox_joint_states = lockbox_specification['joint_states']
             lockbox_joint_dampings = lockbox_specification['joint_dampings']
