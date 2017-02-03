@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 
 
+import operator as op
+
 def get_state(q, states):
     i = 0
     for i, k in enumerate(states):
@@ -479,6 +481,13 @@ def create_world(n=3):
 
     return world
 
+def ncr2(n, r):
+    r = min(r, n-r)
+    if r == 0: return 1
+    numer = reduce(op.mul, xrange(n, n-r, -1))
+    denom = reduce(op.mul, xrange(1, r+1))
+    return numer//denom
+
 def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False, 
                    use_simple_locking_state=False, lockboxfile=None):
     # # FIXME find better location
@@ -540,7 +549,10 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
     #limits = (0, 180)
 
     # Compute the locking depency ground truth:
-    dependency_structure_gt = np.zeros((num_of_joints, num_of_joints + 1))
+
+    num_models = num_of_joints + ncr2(num_of_joints, 2) + 1
+    # Rows is the number of joints, columns is the number of models
+    dependency_structure_gt = np.zeros((num_of_joints, num_models))
 
     for i in range(num_of_joints):
         #dampings = [15, 200, 15]
@@ -591,9 +603,31 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
     for row in dependency_structure_gt:
         sum_row = np.sum(row)
         if sum_row == 0:
-            row[num_of_joints] = 1
-        else:
-            row /= sum_row
+            row[dependency_structure_gt.shape[1]] = 1
+        elif sum_row == 2:
+            index_model_add = 0
+            first_master = -1
+            second_master = -1
+            for i in range(num_of_joints):
+                if row[i] == 1:
+                    first_master = i
+                    row[i] = 0
+                    for j in range(i+1, num_of_joints):
+                        if row[j] == 1:
+                            second_master = j
+                            row[j] = 0
+                            break
+                        else:
+                            print "adding one"
+                            index_model_add += 1
+                    break
+                else:
+                    index_model_add += (num_of_joints -1 - i)
+
+            print first_master
+            print second_master
+            print index_model_add
+            row[num_of_joints + index_model_add] = 1
 
     print 'Ground truth for the dependencty structure:'
     print dependency_structure_gt

@@ -78,13 +78,14 @@ def plot_dependency_posterior_over_time(df, meta, num_joints=None):
         num_joints = determine_num_joints(df)
 
     #plt.figure()
-    f, axarr = plt.subplots(num_joints, 1)
+
     for joint in range(num_joints):
-        p_array = np.zeros((num_joints+1, np.array(df["Posterior%d" % joint].as_matrix()).shape[0]))
+        f, axarr = plt.subplots(1, 1)
+        p_array = np.zeros((np.array(df["Posterior%d" % joint].as_matrix())[0].shape[0], np.array(df["Posterior%d" % joint].as_matrix()).shape[0]))
         for t, arr in enumerate(np.array(df["Posterior%d" % joint].as_matrix())):
             p_array[:,t] = arr
-        axarr[joint].matshow(p_array, interpolation='nearest')
-        axarr[joint].set_title('Dependency posterior for joint %d'%joint)
+        axarr.matshow(p_array, interpolation='nearest')
+        axarr.set_title('Dependency posterior for joint %d'%joint)
 
 
 def plot_dependency_posterior(df, meta, t, num_joints=None):

@@ -4,8 +4,8 @@ from joint_dependency.simulation import (create_world, create_lockbox,
                                          Controller,
                                          ActionMachine)
 from joint_dependency.recorder import Record
-from joint_dependency.inference import (model_posterior, same_segment,
-                                        exp_cross_entropy, random_objective,
+from joint_dependency.inference import (model_posterior, model_posterior_pairs, same_segment,
+                                        exp_cross_entropy, exp_cross_entropy_with_pairs, random_objective,
                                         exp_neg_entropy, heuristic_proximity)
 
 try:
@@ -42,6 +42,8 @@ from blessings import Terminal
 
 from copy import deepcopy
 import time
+
+import operator as op
 
 import matplotlib.pyplot as mlp
 
@@ -114,7 +116,6 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
     best_action = rand_max(action_values, lambda x: x[3])
 
     return best_action
-
 
 def small_joint_state_sampling(_, world, locked_states):
     actions = []
@@ -246,6 +247,13 @@ def calc_posteriors(world, experiences, P_same, alpha_prior, model_prior):
                                           np.asarray(model_prior[i])))
     return posteriors
 
+def calc_posteriors_with_pairs(world, experiences, P_same, alpha_prior, model_prior):
+    posteriors = []
+    for i, joint in enumerate(world.joints):
+        posteriors.append(model_posterior_pairs(experiences[i], np.asarray(P_same),
+                                          alpha_prior,
+                                          np.asarray(model_prior[i]), model_prior.shape[0]))
+    return posteriors
 
 def dependency_learning(N_actions, N_samples, world, objective_fnc,
                         use_change_points, alpha_prior, model_prior,
@@ -429,7 +437,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         #print experiences[desired_joint_to_move]
 
         # calculate model posterior
-        posteriors = calc_posteriors(world, experiences, P_same, alpha_prior,
+        posteriors = calc_posteriors_with_pairs(world, experiences, P_same, alpha_prior,
                                      model_prior)
         for n, p in enumerate(posteriors):
             current_data["Posterior" + str(n)] = [p]
@@ -497,6 +505,38 @@ def build_model_prior_3d(world, independent_prior):
                            (1 - independent_prior))
     return model_prior
 
+def ncr(n, r):
+    r = min(r, n-r)
+    if r == 0: return 1
+    numer = reduce(op.mul, xrange(n, n-r, -1))
+    denom = reduce(op.mul, xrange(1, r+1))
+    return numer//denom
+
+def build_model_prior_3d_with_pairs(world, independent_prior):
+    j = world.joints
+    n = len(j)
+
+    num_models = n + ncr(n,2) + 1
+    #Rows is the number of joints, columns is the number of models
+    model_prior = np.zeros((n, num_models))
+
+    for x in range(n):
+        for y in range(len(model_prior[x])):
+            if x == y:
+                model_prior[x,y] = 0
+            elif y == num_models-1:
+                model_prior[x,y] = independent_prior
+            elif y < n:
+                model_prior[x,y] = 1 / np.linalg.norm(np.asarray(j[x].position) - np.asarray(j[y].position))
+            else:
+                model_prior[x,y] = 0.1
+
+    # normalize
+    model_prior[:, :-1] = ((model_prior.T[:-1, :] /
+                            np.sum(model_prior[:, :-1], 1)).T *
+                           (1 - independent_prior))
+    return model_prior
+
 
 def run_experiment(args):
     # reset all things for every new experiment
@@ -526,7 +566,9 @@ def run_experiment(args):
 
     # the model prior is proportional to 1/distance between the joints
     # if args.use_joint_positions:
-    model_prior = build_model_prior_3d(world, independent_prior)
+    #model_prior = build_model_prior_3d(world, independent_prior)
+
+    model_prior = build_model_prior_3d_with_pairs(world, independent_prior)
 
     print 'model_prior'
     print model_prior
@@ -547,7 +589,7 @@ def run_experiment(args):
     elif args.objective == "entropy":
         objective = exp_neg_entropy
     elif args.objective == "cross_entropy":
-        objective = exp_cross_entropy
+        objective = exp_cross_entropy_with_pairs
     elif args.objective == "heuristic_proximity":
         objective = heuristic_proximity
     else:
