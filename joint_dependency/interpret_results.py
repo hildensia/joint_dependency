@@ -14,13 +14,17 @@ import numpy as np
 from matplotlib.lines import Line2D
 import re
 
+import os
+
 sns.set_style("darkgrid")
+
+save_to_file = True
 
 lscol_ptn = re.compile("LSAfter([0-9]+)")
 def determine_num_joints(df, _):
     return len([ lscol_ptn.match(c).group(1) for c in df.columns if lscol_ptn.match(c) is not None])
 
-def plot_locking_states(df, meta, num_joints=None):
+def plot_locking_states(df, meta, num_joints=None, folder_name=None):
 
     marker_style = dict(linestyle=':', marker='o', s=100,)
 
@@ -55,7 +59,8 @@ def plot_locking_states(df, meta, num_joints=None):
     for t in df.index:
         ax.text(t-(0.2*(t>9)), -0.5, "%d" % t)
 
-    plt.plot()
+    if save_to_file:
+        fig.savefig(folder_name + '/' + 'locking_states.pdf')
 
 def plot_entropy(df, meta, num_joints=None):
     if num_joints is None:
@@ -71,9 +76,9 @@ def plot_entropy(df, meta, num_joints=None):
         axarr[0].plot(df[var_name], label=var_name)
     axarr[0].legend()
 
-    return axarr
+    return f, axarr
 
-def plot_dependency_posterior_over_time(df, meta, num_joints=None):
+def plot_dependency_posterior_over_time(df, meta, num_joints=None, folder_name=None):
     if num_joints is None:
         num_joints = determine_num_joints(df)
 
@@ -86,8 +91,11 @@ def plot_dependency_posterior_over_time(df, meta, num_joints=None):
         axarr[joint].matshow(p_array, interpolation='nearest')
         axarr[joint].set_title('Dependency posterior for joint %d'%joint)
 
+    if save_to_file:
+        f.savefig(folder_name + '/' + 'dependency_posterior_over_time.pdf')
 
-def plot_dependency_posterior(df, meta, t, num_joints=None):
+
+def plot_dependency_posterior(df, meta, t, num_joints=None, folder_name=None):
     if num_joints is None:
         num_joints = determine_num_joints(df)
 
@@ -99,6 +107,9 @@ def plot_dependency_posterior(df, meta, t, num_joints=None):
 
     axarr[1].matshow(meta["DependencyGT"], interpolation='nearest')
     axarr[1].set_title('GT Dependency posterior (joint [row] is locked by joint [col])')
+
+    if save_to_file:
+        f.savefig(folder_name + '/' + 'dependency_posterior.pdf')
 
 
 def print_actions(df, num_joints=None):
@@ -114,7 +125,7 @@ def print_actions(df, num_joints=None):
              #['LSAfter{}'.format(j) for j in range(num_joints)]
             ])
 
-def plot_kld(df, meta, num_joints=None, axarr=None):
+def plot_kld(df, meta, num_joints=None, axarr=None, folder_name=None):
     if num_joints is None:
         num_joints = determine_num_joints(df)
 
@@ -126,6 +137,7 @@ def plot_kld(df, meta, num_joints=None, axarr=None):
         var_name="KLD%d"%j
         axarr[1].plot(df[var_name], label=var_name)
     axarr[1].legend()
+
 
 #Index([u'DesiredPos0', u'DesiredPos1', u'DesiredPos2', u'DesiredPos3',
 #       u'DesiredPos4', u'CheckedJoint', u'RealPos0', u'RealPos1', u'RealPos2',
@@ -151,14 +163,22 @@ if __name__ == "__main__":
     
     df, meta = open_pickle_file(args.file)
 
+    meta
+
+    folder_name = args.file.replace('.pkl', '')
+    os.makedirs(folder_name)
+
     #print meta.items()
     print_actions(df)
 
-    plot_locking_states(df, meta, num_joints=determine_num_joints(df, meta))
-    arr = plot_entropy(df,meta, num_joints=determine_num_joints(df, meta))
-    plot_dependency_posterior(df,meta,-1, num_joints=determine_num_joints(df, meta))
+    plot_locking_states(df, meta, num_joints=determine_num_joints(df, meta), folder_name =folder_name)
+    f, arr = plot_entropy(df,meta, num_joints=determine_num_joints(df, meta))
+    plot_dependency_posterior(df,meta,-1, num_joints=determine_num_joints(df, meta), folder_name =folder_name)
 
-    plot_dependency_posterior_over_time(df,meta,num_joints=determine_num_joints(df, meta))
+    plot_dependency_posterior_over_time(df,meta,num_joints=determine_num_joints(df, meta), folder_name =folder_name)
     plot_kld(df, meta, num_joints=determine_num_joints(df, meta), axarr = arr)
 
-    plt.show()
+    if not save_to_file:
+        plt.show()
+    else:
+        f.savefig(folder_name + '/' + 'entropy_and_kld.pdf')

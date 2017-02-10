@@ -261,7 +261,8 @@ def calc_posteriors(world, experiences, P_same, alpha_prior, model_prior):
 def dependency_learning(N_actions, N_samples, world, objective_fnc,
                         use_change_points, alpha_prior, model_prior,
                         action_machine, location, action_sampling_fnc,
-                        use_ros, use_joint_positions=False):
+                        use_ros, use_joint_positions=False,
+                        lockboxfile=None):
     # writer = Writer(location)
     widgets = [Bar(), Percentage(),
                " (Run #{}, PID {})".format(0,
@@ -318,7 +319,8 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
                 'AlphaPrior': alpha_prior,
                 'P_cp': P_cp,
                 'P_same': P_same,
-                'DependencyGT' : world.dependency_structure_gt}
+                'DependencyGT' : world.dependency_structure_gt,
+                'Lockboxfile': lockboxfile}
 
     idx_last_successes = []
     idx_last_failures = []
@@ -584,7 +586,8 @@ def run_experiment(args):
         location=None,
         action_sampling_fnc=action_sampling_fnc,
         use_ros=args.use_ros,
-        use_joint_positions=args.use_joint_positions)
+        use_joint_positions=args.use_joint_positions,
+        lockboxfile=args.lockboxfile))
 
     metadata['Seed'] = seed
     filename = generate_filename(metadata)

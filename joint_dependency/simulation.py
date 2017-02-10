@@ -502,11 +502,14 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
     #
     # print lockbox_joint_positions
 
+
+
     #load a lock-box specification from a yaml-file in case lockboxfile is given
     if lockboxfile != None:
         with open(lockboxfile, 'r') as stream:
             lockbox_specification = yaml.load(stream)
             num_of_joints = lockbox_specification['n_joints']
+            print num_of_joints
             lockbox_joint_positions = np.array(lockbox_specification['joint_positions'])
             lockbox_joint_states = lockbox_specification['joint_states']
             lockbox_joint_dampings = lockbox_specification['joint_dampings']
@@ -520,7 +523,7 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
     lockbox_joint_positions_np = np.array(lockbox_joint_positions)
 
     ax.scatter(lockbox_joint_positions_np[:, 0], lockbox_joint_positions_np[:, 1])
-    labels = ['0', '1', '2', '3', '4']
+    labels = [str(i) for i in range(num_of_joints)]
     for label, x, y in zip(labels, lockbox_joint_positions_np[:, 0], lockbox_joint_positions_np[:, 1]):
         ax.annotate(
             label,
@@ -585,6 +588,10 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
                                                  connectionstyle='arc3, rad=0.7', arrowstyle='simple', color='b',
                                                  mutation_scale=20)
             ax.add_patch(patch1)
+
+            min_y = min(lockbox_joint_positions[:, 1]) -1
+            max_y = max(lockbox_joint_positions[:, 1]) +1
+            ax.set_ylim([min_y, max_y])
             dependency_structure_gt[i, idx_master] = 1
 
     #Compute the locking depency ground truth:
@@ -600,7 +607,7 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
 
     world.set_dependency_structure_gt(dependency_structure_gt)
 
-    plt.show()
+    #plt.show()
 
     # MultiLocker(world, master=world.joints[2], slave=world.joints[1],
     #             locks=[(-1, -1), (20, 180)])
