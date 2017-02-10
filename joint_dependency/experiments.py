@@ -587,7 +587,7 @@ def run_experiment(args):
         action_sampling_fnc=action_sampling_fnc,
         use_ros=args.use_ros,
         use_joint_positions=args.use_joint_positions,
-        lockboxfile=args.lockboxfile))
+        lockboxfile=args.lockboxfile)
 
     metadata['Seed'] = seed
     filename = generate_filename(metadata)
