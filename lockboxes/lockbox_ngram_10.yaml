@@ -1,14 +1,24 @@
 #The number of joints
-n_joints: 5
+n_joints: 10
 #The positions of the joints in R^3. Change this in order to make different spatial layouts of the lockbox
 joint_positions: [
-    [1., 0., 0],
-    [-0.80901699, 0.58778525, 0],
-    [0.30901699, -0.95105652, 0],
-    [0.30901699, 0.95105652, 0],
-    [-0.80901699, -0.58778525, 0]]
+    [1.00000000, 0.0, 0],
+    [-9.51056516e-01, 0.30901699, 0],
+    [8.09016994e-01, -0.58778525, 0],
+    [-5.87785252e-01, 0.80901699, 0],
+    [3.09016994e-01, -0.95105652, 0],
+    [5.51091060e-16, 1., 0],
+    [-3.09016994e-01, -0.95105652, 0],
+    [5.87785252e-01, 0.80901699, 0],
+    [-8.09016994e-01, -0.58778525, 0],
+    [9.51056516e-01, 0.30901699, 0]]
 #I honestly don't know why these Values are there... I think it's deprecated / used by bayesian changepoint detection
 joint_states: [
+[160,211],
+[160,211],
+[160,211],
+[160,211],
+[160,211],
 [160,211],
 [160,211],
 [160,211],
@@ -20,9 +30,19 @@ joint_dampings: [
 [15, 200, 15],
 [15, 200, 15],
 [15, 200, 15],
+[15, 200, 15],
+[15, 200, 15],
+[15, 200, 15],
+[15, 200, 15],
+[15, 200, 15],
 [15, 200, 15]]
 #The lower and upper limits of each joint's joint range. In the current version this can be the same for each joint
 joint_limits: [
+[0, 180],
+[0, 180],
+[0, 180],
+[0, 180],
+[0, 180],
 [0, 180],
 [0, 180],
 [0, 180],
@@ -34,12 +54,22 @@ joint_dependencies: [
 [0,],
 [1,],
 [2,],
-[3,]]
+[3,],
+[4],
+[5,],
+[6,],
+[7,],
+[8,]]
 #A list of dictionary that represents in which interval each master joint locks the slave joint. For the dictionary at index i with entry j:x, the joint i is locked if joint j is in one of the intervals defined in list x
 joint_lockers: [
 {},
 {0: [[-1,160]] },
 {1: [[-1,160]] },
 {2: [[-1,160]] },
-{3: [[-1,160]] }]
+{3: [[-1,160]] },
+{4: [[-1,160]] },
+{5: [[-1,160]] },
+{6: [[-1,160]] },
+{7: [[-1,160]] },
+{8: [[-1,160]] }]
 
