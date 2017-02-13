@@ -147,6 +147,29 @@ def plot_kld(df, meta, num_joints=None, axarr=None, folder_name=None):
 #       u'Posterior3', u'Entropy3', u'Posterior4', u'Entropy4'],
 #      dtype='object')
 
+def plot_joints_to_be_opened(df, meta, num_joints=None):
+    if num_joints is None:
+        num_joints = determine_num_joints(df)
+
+    f=plt.figure()
+    locking_states_beginning=[]
+    for j in range(num_joints):
+        locking_states_beginning.append(df["LSBefore"+str(j)].as_matrix())
+    locking_states_beginning = np.vstack(locking_states_beginning)
+    #print df
+
+    #This array is initialized as all false and we do a "logical or" sweeping over time to compute if a joint was opened at any point in time before t
+    locking_states_was_not_opened = np.ones(locking_states_beginning.shape, dtype=bool)
+    for t in range(locking_states_was_not_opened.shape[1]):
+        locking_states_was_not_opened[:,t] = np.logical_and(locking_states_was_not_opened[:,t-1],locking_states_beginning[:,t])
+
+    print "-----",locking_states_beginning
+    print "-----"
+    print locking_states_was_not_opened
+    num_joints_was_not_opened = np.sum(locking_states_was_not_opened,axis=0)
+    ax= plt.plot(range(num_joints_was_not_opened.shape[0]),num_joints_was_not_opened)
+    f.suptitle("Number of joints still to be opened", fontsize=20)
+    return f, ax
 
 def open_pickle_file(pkl_file):
     with open(pkl_file) as f:
@@ -172,13 +195,17 @@ if __name__ == "__main__":
     print_actions(df)
 
     plot_locking_states(df, meta, num_joints=determine_num_joints(df, meta), folder_name =folder_name)
-    f, arr = plot_entropy(df,meta, num_joints=determine_num_joints(df, meta))
+    f_entropy, arr = plot_entropy(df,meta, num_joints=determine_num_joints(df, meta))
+
     plot_dependency_posterior(df,meta,-1, num_joints=determine_num_joints(df, meta), folder_name =folder_name)
 
     plot_dependency_posterior_over_time(df,meta,num_joints=determine_num_joints(df, meta), folder_name =folder_name)
     plot_kld(df, meta, num_joints=determine_num_joints(df, meta), axarr = arr)
 
+    f_joints_to_be_opened, _ = plot_joints_to_be_opened(df, meta,num_joints=determine_num_joints(df, meta))
+
     if not save_to_file:
         plt.show()
     else:
-        f.savefig(folder_name + '/' + 'entropy_and_kld.pdf')
+        f_entropy.savefig(folder_name + '/' + 'entropy_and_kld.pdf')
+        f_joints_to_be_opened.savefig(folder_name + '/' + 'joints_to_be_opened.pdf')
