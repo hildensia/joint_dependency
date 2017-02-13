@@ -4,12 +4,11 @@ n_joints: 6
 spatial_arrangement: 'ngram'
 #The positions of the joints in R^3. Change this in order to make different spatial layouts of the lockbox
 joint_positions: [
-    [1., 0., 0],
-    [0.5, 0.866025404, 0],
+    [1., 0., 0],[-1, 0, 0],
+    [0.5, -0.866025404, 0],
     [-0.5, 0.866025404, 0],
-    [-1, 0, 0],
     [-0.5, -0.866025404, 0],
-    [0.5, -0.866025404, 0]]
+    [0.5, 0.866025404, 0]]
 #I honestly don't know why these Values are there... I think it's deprecated / used by bayesian changepoint detection
 joint_states: [
 [160,211],
