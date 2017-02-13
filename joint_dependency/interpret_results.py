@@ -163,9 +163,9 @@ def plot_joints_to_be_opened(df, meta, num_joints=None):
     for t in range(locking_states_was_not_opened.shape[1]):
         locking_states_was_not_opened[:,t] = np.logical_and(locking_states_was_not_opened[:,t-1],locking_states_beginning[:,t])
 
-    print "-----",locking_states_beginning
-    print "-----"
-    print locking_states_was_not_opened
+    #print "-----",locking_states_beginning
+    #print "-----"
+    #print locking_states_was_not_opened
     num_joints_was_not_opened = np.sum(locking_states_was_not_opened,axis=0)
     ax= plt.plot(range(num_joints_was_not_opened.shape[0]),num_joints_was_not_opened)
     f.suptitle("Number of joints still to be opened", fontsize=20)
@@ -185,8 +185,6 @@ if __name__ == "__main__":
     args = parser.parse_args()  
     
     df, meta = open_pickle_file(args.file)
-
-    meta
 
     folder_name = args.file.replace('.pkl', '')
     os.makedirs(folder_name)
