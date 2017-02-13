@@ -268,20 +268,20 @@ def exp_cross_entropy(experiences, joint_pos,
     return locked[0] * ce
 
 
-def exp_neg_entropy(experiences, joint_pos, p_same, alpha_prior, model_prior, model_post=None, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False):
+def exp_neg_entropy(experiences, joint_pos, p_same, alpha_prior, model_prior, model_post=None, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False, check_joint=None):
     ce = 0.
 
-    output_likelihood = prob_locked(experiences, joint_pos, p_same,
-                                    alpha_prior, model_prior)
+    output_likelihood = prob_locked(experiences[check_joint], joint_pos, p_same,
+                                    alpha_prior, model_prior[check_joint])
 
     for i, prob in enumerate(output_likelihood.mean()):
         exp = {'data': joint_pos, 'value': i}
 
-        augmented_exp = list(experiences)  # copy the list!
+        augmented_exp = list(experiences[check_joint])  # copy the list!
         augmented_exp.append(exp)  # add the 'new' experience
 
         augmented_post = model_posterior(augmented_exp, p_same, alpha_prior,
-                                         model_prior)
+                                         model_prior[check_joint])
 
         ce += prob * entropy(augmented_post)
     return -ce
