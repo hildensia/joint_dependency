@@ -43,7 +43,7 @@ from blessings import Terminal
 
 from copy import deepcopy
 import time
-
+import yaml
 import matplotlib.pyplot as mlp
 
 term = Terminal()
@@ -69,7 +69,7 @@ class Writer(object):
 
 def generate_filename(metadata):
     return "data_" + str(metadata["Date"]).replace(" ", "-") \
-        .replace("/", "-").replace(":", "-") + "_" + metadata['Objective'] + (".pkl")
+        .replace("/", "-").replace(":", "-") + "_" + metadata['Objective'] + "_" +metadata['LockboxSpatialArrangement']   + "_" + str(metadata['LockboxNJoints']) + (".pkl")
 
 
 def init(world):
@@ -262,7 +262,8 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
                         use_change_points, alpha_prior, model_prior,
                         action_machine, location, action_sampling_fnc,
                         use_ros, use_joint_positions=False,
-                        lockboxfile=None):
+                        lockboxfile=None
+                        ):
     # writer = Writer(location)
     widgets = [Bar(), Percentage(),
                " (Run #{}, PID {})".format(0,
@@ -311,6 +312,14 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
     progress.update(1)
 
+    if lockboxfile != None:
+        with open(lockboxfile, 'r') as stream:
+            lockbox_specification = yaml.load(stream)
+            spatial_arrangement = lockbox_specification['spatial_arrangement']
+            num_joints = lockbox_specification['n_joints']
+    else:
+        print "No file to load"
+
     metadata = {'ChangePointDetection': use_change_points,
                 'Date': datetime.datetime.now(),
                 'Objective': objective_fnc.__name__,
@@ -320,7 +329,10 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
                 'P_cp': P_cp,
                 'P_same': P_same,
                 'DependencyGT' : world.dependency_structure_gt,
-                'Lockboxfile': lockboxfile}
+                'Lockboxfile': lockboxfile,
+                'Lockboxdescription': lockbox_specification,
+                'LockboxSpatialArrangement': spatial_arrangement,
+                'LockboxNJoints': num_joints}
 
     idx_last_successes = []
     idx_last_failures = []
