@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-n_joints = 8
+n_joints = 6
 
 angles = np.linspace(0,np.pi*2,n_joints,endpoint=False)
 
@@ -26,7 +26,7 @@ plt.scatter(xs,ys)
 
 plt.plot(xs[indices],ys[indices])
 
-print xs
-print ys
+print xs[indices]
+print ys[indices]
 
 plt.show()

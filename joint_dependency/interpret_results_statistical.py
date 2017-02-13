@@ -15,8 +15,9 @@ from matplotlib.lines import Line2D
 import re
 
 sns.set_style("darkgrid")
-
-
+lscol_ptn = re.compile("LSAfter([0-9]+)")
+def determine_num_joints(df):
+    return len([ lscol_ptn.match(c).group(1) for c in df.columns if lscol_ptn.match(c) is not None])
 
 def plot_dependency_posterior_over_time(df, meta, num_joints=None):
     if num_joints is None:
@@ -40,6 +41,22 @@ def plot_dependency_posterior(df, meta, t, num_joints=None):
     plt.matshow(posterior, interpolation='nearest')
     plt.title('Dependency posterior (joint [row] is locked by joint [col])')
 
+def get_joints_to_be_opened(df):
+    num_joints = determine_num_joints(df)
+    locking_states_beginning=[]
+    for j in range(num_joints):
+        locking_states_beginning.append(df["LSBefore"+str(j)].as_matrix())
+    locking_states_beginning = np.vstack(locking_states_beginning)
+    #print df
+
+    #This array is initialized as all false and we do a "logical or" sweeping over time to compute if a joint was opened at any point in time before t
+    locking_states_was_not_opened = np.ones(locking_states_beginning.shape, dtype=bool)
+    for t in range(locking_states_was_not_opened.shape[1]):
+        locking_states_was_not_opened[:,t] = np.logical_and(locking_states_was_not_opened[:,t-1],locking_states_beginning[:,t])
+
+    num_joints_was_not_opened = np.sum(locking_states_was_not_opened, axis=0)
+
+    return num_joints_was_not_opened
 
 
 def open_pickle_file(pkl_file):
@@ -60,27 +77,27 @@ if __name__ == "__main__":
     for i_file, f in enumerate(args.files):
         print "Parsing file: ",f
         df, meta = open_pickle_file(f)
+        #print df
         dfs.append(df)
         metas.append(meta)
 
 
     n_joints = metas[0]["DependencyGT"].shape[0]
-    entropies_over_time = [[] for j in range(n_joints)]
+    list_entropy_over_time = [[] for j in range(n_joints)]
+    list_kl_divergence_over_time = [[] for j in range(n_joints)]
+    list_num_joints_to_be_opened=[]
     for df in dfs:
         for j in range(5):
-            entropies_over_time[j].append(df["Entropy"+str(j)].as_matrix())
+            list_entropy_over_time[j].append(df["Entropy"+str(j)].as_matrix())
+            list_kl_divergence_over_time[j].append(df["KLD" + str(j)].as_matrix())
+        list_num_joints_to_be_opened.append(get_joints_to_be_opened(df))
 
-
-    #to_be_plotted = pd.melt(entropies_over_time[0])
-
-
-    #print to_be_plotted
-    f, axarr = plt.subplots(2, 5)
+    f_entropies, axarr = plt.subplots(2, 5)
     for j in range(5):
-        to_be_plotted = entropies_over_time[j]
-        ax = sns.tsplot(data=to_be_plotted, ax=axarr[0, j])
-        ax.set_ylim((0,2))
-    #print data
-    #print to_be_plotted.as_matrix()
+        ax = sns.tsplot(data=list_entropy_over_time[j], ax=axarr[0, j])
+        ax = sns.tsplot(data=list_kl_divergence_over_time[j], ax=axarr[1, j])
+
+    f_num_joints_to_be_opened = plt.figure()
+    ax = sns.tsplot(data=list_num_joints_to_be_opened)
+
     plt.show()
-    #sns.tsplot(to_be_plotted)
