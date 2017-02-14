@@ -100,29 +100,49 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
                    action_sampling_fnc,
                    idx_last_successes=[], idx_last_failures=[],
                    use_joint_positions=False):
-    actions = action_sampling_fnc(N_samples, world, locked_states)
 
+    actions = action_sampling_fnc(N_samples, world, locked_states)
+    num_joints = model_prior.shape[0]
     action_values = []
+    only_values = []
     for action in actions:
         value = 0
-        check_joint = action[0]  # np.random.randint(0, len(world.joints))
-        for check_joint in range(5):
+        joint_to_actuate = action[0]  # np.random.randint(0, len(world.joints))
+        pos_of_joint_to_actuate = action[1]
+        for check_joint in range(num_joints):
             value += objective_fnc(experiences,
-                                   action[1],
+                                   pos_of_joint_to_actuate,
                                    np.asarray(p_same),
                                    alpha_prior,
                                    model_prior,
                                    None,
                                    idx_last_successes,
-                                   action[0],
+                                   joint_to_actuate,
                                    idx_last_failures,
                                    world,
                                    use_joint_positions,
                                    check_joint=check_joint)
 
-        action_values.append((action[1], check_joint, action[0], value))
+        action_values.append((pos_of_joint_to_actuate, check_joint, joint_to_actuate, value))
+        only_values.append((value))
     # print("{} -- {}".format(action[1], value))
     best_action = rand_max(action_values, lambda x: x[3])
+
+    print "values ", only_values
+
+    # joint_pos_now =[]
+    # for joint in world.joints:
+    #     joint_pos_now.append(joint.get_q())
+    #
+    # for joint in range(num_joints):
+    #     model_post = model_posterior(experiences[joint],
+    #                                  np.asarray(p_same), alpha_prior,
+    #                                  model_prior[joint])
+    #     d = prob_locked(experiences[joint], joint_pos_now, np.asarray(p_same),
+    #                 alpha_prior, model_prior[joint],
+    #                 model_post=model_post)
+    #     print "joint: ", joint
+    #     print "d.alpha: " ,d.alpha
 
     return best_action
 
@@ -342,7 +362,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     with open(filename, "w") as _file:
         cPickle.dump((data, metadata), _file)
 
-    # initial_data = pd.DataFrame(index=[-1])
+    # ialial_data = pd.DataFrame(index=[-1])
     # for n, p in enumerate([-1,-1,-1,-1,-1]):
     #     initial_data["DesiredPos" + str(n)] = [p]
     # initial_data["CheckedJoint"] = [-1]
@@ -387,6 +407,8 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
                   "that has as objective to estimate the dependency structure "
                   "and not to reduce the entropy")
             break
+        else:
+            print "Desired joint to move: ", desired_joint_to_move
 
         for n, p in enumerate(desired_joint_configurations):
             current_data["DesiredPos" + str(n)] = [p]
@@ -512,9 +534,9 @@ def build_model_prior_3d(world, independent_prior):
     model_prior = np.array([[0 if x == y
                              else independent_prior
     if x == n
-    else 1 / np.linalg.norm(
-        np.asarray(j[x].position) - np.asarray(j[y].position)
-    )
+    else 0.7 #1 / np.linalg.norm(
+        #np.asarray(j[x].position) - np.asarray(j[y].position)
+    #)
                              for x in range(n + 1)]
                             for y in range(n)])
     # normalize
@@ -546,9 +568,9 @@ def run_experiment(args):
             controllers.append(Controller(world, j))
         action_machine = ActionMachine(world, controllers, .1)
 
-    alpha_prior = np.array([.7, .7])
+    alpha_prior = np.array([0.1, 0.7])
 
-    independent_prior = .7
+    independent_prior = .2
 
     # the model prior is proportional to 1/distance between the joints
     # if args.use_joint_positions:

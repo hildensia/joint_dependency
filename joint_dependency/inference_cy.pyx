@@ -192,6 +192,8 @@ def prob_locked(experiences, joint_pos, np.ndarray[double, ndim=3] p_same,
                                                       joint_idx,
                                                       p_same[joint_idx])
     d = dirichlet(alpha)
+    #print("alpha: %f, %f" % (alpha[0],alpha[1]))
+    #print("dirichlet mean: %f" % (d.mean()))
     return d
 
 
@@ -247,10 +249,13 @@ def exp_cross_entropy(experiences, joint_pos,
                                      p_same, alpha_prior,
                                      model_prior[check_joint])
 
+    #print("alphas of %d" % (idx_next_joint))
     locked = prob_locked(experiences[idx_next_joint], joint_pos, p_same,
                                  alpha_prior, model_prior[idx_next_joint],
                                  model_post=model_post).mean()
 
+
+    #print("alphas of %d" % (check_joint))
     output_likelihood = prob_locked(experiences[check_joint], joint_pos, p_same,
                                     alpha_prior, model_prior[check_joint],
                                     model_post=model_post)
@@ -265,7 +270,7 @@ def exp_cross_entropy(experiences, joint_pos,
                                          model_prior[check_joint])
 
         ce += prob * entropy(model_post, augmented_post)
-    return locked[0] * ce
+    return ce
 
 
 def exp_neg_entropy(experiences, joint_pos, p_same, alpha_prior, model_prior, model_post=None, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False, check_joint=None):
