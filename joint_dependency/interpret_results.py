@@ -18,7 +18,7 @@ import os
 
 sns.set_style("darkgrid")
 
-save_to_file = True
+save_to_file = False
 
 lscol_ptn = re.compile("LSAfter([0-9]+)")
 def determine_num_joints(df, _):
