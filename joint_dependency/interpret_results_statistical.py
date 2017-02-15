@@ -70,7 +70,7 @@ def open_pickle_file(pkl_file):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-o", "--output_filename", required=True,
+    parser.add_argument("-o", "--output_filename",
                         help="the name of the output file",nargs='+')
     parser.add_argument("-f", "--files", required=True,
                         help="pickle files",nargs='+')
@@ -117,7 +117,7 @@ if __name__ == "__main__":
         list_kl_divergence_over_time = [[] for j in range(n_joints)]
         list_num_joints_to_be_opened=[]
         for df in dfs:
-            for j in range(5):
+            for j in range(n_joints):
                 list_entropy_over_time[j].append(df["Entropy"+str(j)].as_matrix())
                 list_kl_divergence_over_time[j].append(df["KLD" + str(j)].as_matrix())
             list_num_joints_to_be_opened.append(get_joints_to_be_opened(df))

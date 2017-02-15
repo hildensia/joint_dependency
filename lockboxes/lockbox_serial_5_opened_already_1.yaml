@@ -1,0 +1,47 @@
+#The number of joints
+n_joints: 5
+#Spatial arrangement of the joints of the lockbox: useful to name the generated pickle files
+spatial_arrangement: 'serial'
+#The positions of the joints in R^3. Change this in order to make different spatial layouts of the lockbox
+joint_positions: [
+    [0, 0, 0],
+    [2, 0, 0],
+    [4, 0, 0],
+    [6, 0, 0],
+    [8, 0, 0]]
+#I honestly don't know why these Values are there... I think it's deprecated / used by bayesian changepoint detection
+joint_states: [
+[160,211],
+[160,211],
+[160,211],
+[160,211],
+[160,211]]
+#Not used right now, but Johannes needed it for the changepoint detection
+joint_dampings: [
+[15, 200, 15],
+[15, 200, 15],
+[15, 200, 15],
+[15, 200, 15],
+[15, 200, 15]]
+#The lower and upper limits of each joint's joint range. In the current version this can be the same for each joint
+joint_limits: [
+[0, 180],
+[0, 180],
+[0, 180],
+[0, 180],
+[0, 180]]
+#A list of lists, where the list at index i represents which other joints can lock joint i. Edit this to design different topologies for the dependency structure
+joint_dependencies: [
+[],
+[0,],
+[1,],
+[2,],
+[3,]]
+#A list of dictionary that represents in which interval each master joint locks the slave joint. For the dictionary at index i with entry j:x, the joint i is locked if joint j is in one of the intervals defined in list x
+joint_lockers: [
+{},
+{0: [[-1,160]] },
+{1: [[-1,160]] },
+{2: [[-1,160]] },
+{3: [[-1,160]] }]
+
