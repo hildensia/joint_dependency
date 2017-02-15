@@ -68,6 +68,8 @@ def open_pickle_file(pkl_file):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("-o", "--output_filename", required=True,
+                        help="the name of the output file",nargs='+')
     parser.add_argument("-f", "--files", required=True,
                         help="pickle files",nargs='+')
     args = parser.parse_args()
@@ -104,4 +106,10 @@ if __name__ == "__main__":
     f_num_joints_to_be_opened = plt.figure()
     ax = sns.tsplot(data=list_num_joints_to_be_opened)
 
-    plt.show()
+    if args.output_filename:
+        print args.output_filename
+        print type(args.output_filename)
+        f_entropies.savefig(args.output_filename[0] + '_entropy_and_kld.pdf')
+        f_num_joints_to_be_opened.savefig(args.output_filename[0] + '_joints_to_be_opened.pdf')
+    else:
+        plt.show()

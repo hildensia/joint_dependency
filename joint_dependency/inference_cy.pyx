@@ -201,11 +201,18 @@ def random_objective(exp, joint_pos, p_same, alpha_prior, model_prior, model_pos
     return np.random.uniform()
 
 def heuristic_proximity(exp, joint_pos, p_same, alpha_prior, model_prior, model_post=None, idx_last_successes=None,idx_next_joint=None,idx_last_failures=None, world=None, use_joint_positions=False, check_joint=None):
-    if not idx_last_successes:
-        return np.random.uniform()
+
 
     if not idx_last_failures:
         idx_last_failures = []
+
+    if not idx_last_successes:
+        if idx_next_joint in idx_last_failures:
+            return -np.inf
+        else:
+            return np.random.uniform()
+
+
 
     #TODO: Ask Johannes what are his objectives returning for the first action. If returns the same value for all the actions, the maximum will be just the first action of the list (?). Basically, how does he choose the first action?
 
@@ -216,9 +223,10 @@ def heuristic_proximity(exp, joint_pos, p_same, alpha_prior, model_prior, model_
         
     
     if not idx_next_joint in idx_last_failures and not idx_next_joint in idx_last_successes:
-        return -distance #Distance between next joint and last joint 
+        return -distance #Distance between next joint and last joint
     else:
         return -np.inf
+
 
 
 def exp_cross_entropy(experiences, joint_pos,
@@ -269,6 +277,8 @@ def exp_cross_entropy(experiences, joint_pos,
         augmented_post = model_posterior(augmented_exp, p_same, alpha_prior,
                                          model_prior[check_joint])
 
+        # print("{} * H({}, {}) {}".format(prob, model_post, augmented_post,
+        #                                  entropy(model_post, augmented_post)))
         ce += prob * entropy(model_post, augmented_post)
     return ce
 
