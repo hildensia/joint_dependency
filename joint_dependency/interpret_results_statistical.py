@@ -92,11 +92,15 @@ if __name__ == "__main__":
             list_kl_divergence_over_time[j].append(df["KLD" + str(j)].as_matrix())
         list_num_joints_to_be_opened.append(get_joints_to_be_opened(df))
 
+    ylims=[[(1.5,1.8),(0.6,1.8),(0.6,1.8),(0.6,1.8),(0.6,1.8),(0.6,1.8)],
+           [(1.0,1.8),(0.2,1.8),(0.2,1.8),(0.2,1.8),(0.2,1.8),(0.2,1.8)]]
+
     f_entropies, axarr = plt.subplots(2, 5)
     for j in range(5):
         ax = sns.tsplot(data=list_entropy_over_time[j], ax=axarr[0, j])
+        ax.set_ylim(ylims[0][j])
         ax = sns.tsplot(data=list_kl_divergence_over_time[j], ax=axarr[1, j])
-
+        ax.set_ylim(ylims[1][j])
     f_num_joints_to_be_opened = plt.figure()
     ax = sns.tsplot(data=list_num_joints_to_be_opened)
 

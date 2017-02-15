@@ -568,7 +568,7 @@ def run_experiment(args):
             controllers.append(Controller(world, j))
         action_machine = ActionMachine(world, controllers, .1)
 
-    alpha_prior = np.array([0.1, 0.7])
+    alpha_prior = np.array([0.7, 0.7])
 
     independent_prior = .2
 
