@@ -13,6 +13,8 @@ import numpy as np
 
 from matplotlib.lines import Line2D
 import re
+import ipdb
+import ipdb
 
 sns.set_style("darkgrid")
 lscol_ptn = re.compile("LSAfter([0-9]+)")
@@ -72,36 +74,114 @@ if __name__ == "__main__":
                         help="pickle files",nargs='+')
     args = parser.parse_args()
 
-    dfs=[]
-    metas=[]
+    objectives = ["random_objective", "exp_neg_entropy", "exp_cross_entropy", "heuristic_proximity"]
+
+    dfs_per_objective={objective:[] for objective in objectives}
+    metas_per_objective={objective:[] for objective in objectives}
+
+    colors_per_objective={"random_objective": 'b',
+                          "exp_neg_entropy":'g',
+                          "exp_cross_entropy":'r',
+                          "heuristic_proximity":'k'}
+
+#    dfs=[]
+#    metas=[]
     for i_file, f in enumerate(args.files):
         print "Parsing file: ",f
         df, meta = open_pickle_file(f)
+        objective = meta["Objective"]
         #print df
-        dfs.append(df)
-        metas.append(meta)
+        dfs_per_objective[objective].append(df)
+        metas_per_objective[objective].append(meta)
+
+    n_experiments_per_objective = {objective: len(metas_per_objective[objective]) for objective in dfs_per_objective.keys()}
+
+    # Plots that combine all joints into a single measure
+    # f_combined_measures, axarr_combined_measures = plt.subplots(3, 1)
+
+    ax_n_correct_dependency_belief=None
+    ax_sums_of_ent_over_time=None
+    ax_sums_of_kld_over_time=None
+    ax_num_joints_to_be_opened=None
+
+    n_joints = determine_num_joints(dfs_per_objective.values()[0][0])
+    for objective in objectives:
+        print "Plotting objective: "+objective
+        dfs = dfs_per_objective[objective]
+        metas = metas_per_objective[objective]
+        n_experiments = n_experiments_per_objective[objective]
+
+        list_entropy_over_time = [[] for j in range(n_joints)]
+        list_kl_divergence_over_time = [[] for j in range(n_joints)]
+        list_num_joints_to_be_opened=[]
+        for df in dfs:
+            for j in range(5):
+                list_entropy_over_time[j].append(df["Entropy"+str(j)].as_matrix())
+                list_kl_divergence_over_time[j].append(df["KLD" + str(j)].as_matrix())
+            list_num_joints_to_be_opened.append(get_joints_to_be_opened(df))
+
+        if objective=="heuristic_proximity":
+            print list_num_joints_to_be_opened
 
 
-    n_joints = metas[0]["DependencyGT"].shape[0]
-    list_entropy_over_time = [[] for j in range(n_joints)]
-    list_kl_divergence_over_time = [[] for j in range(n_joints)]
-    list_num_joints_to_be_opened=[]
-    for df in dfs:
-        for j in range(5):
-            list_entropy_over_time[j].append(df["Entropy"+str(j)].as_matrix())
-            list_kl_divergence_over_time[j].append(df["KLD" + str(j)].as_matrix())
-        list_num_joints_to_be_opened.append(get_joints_to_be_opened(df))
+        sums_of_kld_over_time = np.sum(np.array(list_kl_divergence_over_time),axis=0)
+        sums_of_ent_over_time = np.sum(np.array(list_entropy_over_time), axis=0)
 
-    ylims=[[(1.5,1.8),(0.6,1.8),(0.6,1.8),(0.6,1.8),(0.6,1.8),(0.6,1.8)],
-           [(1.0,1.8),(0.2,1.8),(0.2,1.8),(0.2,1.8),(0.2,1.8),(0.2,1.8)]]
+        #print list_entropy_over_time
 
-    f_entropies, axarr = plt.subplots(2, 5)
-    for j in range(5):
-        ax = sns.tsplot(data=list_entropy_over_time[j], ax=axarr[0, j])
-        ax.set_ylim(ylims[0][j])
-        ax = sns.tsplot(data=list_kl_divergence_over_time[j], ax=axarr[1, j])
-        ax.set_ylim(ylims[1][j])
-    f_num_joints_to_be_opened = plt.figure()
-    ax = sns.tsplot(data=list_num_joints_to_be_opened)
+
+        #ylims=[[(1.5,1.8),(0.6,1.8),(0.6,1.8),(0.6,1.8),(0.6,1.8),(0.6,1.8)],
+        #       [(1.0,1.8),(0.2,1.8),(0.2,1.8),(0.2,1.8),(0.2,1.8),(0.2,1.8)]]
+        #
+        #
+        # f_entropies, axarr = plt.subplots(2, 5)
+        # for j in range(5):
+        #     ax = sns.tsplot(data=list_entropy_over_time[j], ax=axarr[0, j])
+        #     #ax.set_ylim(ylims[0][j])
+        #     ax = sns.tsplot(data=list_kl_divergence_over_time[j], ax=axarr[1, j])
+        #     #ax.set_ylim(ylims[1][j])
+        # f_num_joints_to_be_opened = plt.figure()
+        # ax = sns.tsplot(data=list_num_joints_to_be_opened)
+        #
+
+        # #ipdb.set_trace()
+
+
+        list_n_correct_dependency_belief=[[] for i in range(n_experiments)]
+        for i_experiment in range(n_experiments):
+            DependencyGT = metas[i_experiment]['DependencyGT']
+            #go over all timesteps
+            for t in range(len(dfs[i_experiment])):
+                #Construct the belief matrix over joint dependencies
+                DependencyBelief = np.zeros(DependencyGT.shape)
+                for j in range(n_joints):
+                    DependencyBelief[j,:]=dfs[i_experiment]["Posterior"+str(j)][t]
+                n_correct_dependency_beliefs = np.sum((DependencyBelief >= 0.5) * DependencyGT)
+                list_n_correct_dependency_belief[i_experiment].append(n_correct_dependency_beliefs)
+
+        list_n_correct_dependency_belief=np.array(list_n_correct_dependency_belief)
+
+
+        if ax_n_correct_dependency_belief == None:
+            plt.figure()
+        ax_n_correct_dependency_belief = sns.tsplot(data=list_n_correct_dependency_belief, ax=ax_n_correct_dependency_belief, condition=objective, c=colors_per_objective[objective])
+        ax_n_correct_dependency_belief.set_title("Correctly classified dependencies")
+
+        if ax_sums_of_ent_over_time == None:
+            plt.figure()
+        ax_sums_of_ent_over_time = sns.tsplot(data=sums_of_ent_over_time, ax=ax_sums_of_ent_over_time, condition=objective, c=colors_per_objective[objective])
+        ax_sums_of_ent_over_time.set_title("Sums of joint-wise entropies")
+
+        if ax_sums_of_kld_over_time == None:
+            plt.figure()
+        ax_sums_of_kld_over_time = sns.tsplot(data=sums_of_kld_over_time, ax=ax_sums_of_kld_over_time, condition=objective, c=colors_per_objective[objective])
+        ax_sums_of_kld_over_time.set_title("Sums of joint-wise KL Divergences to ground truth")
+
+        if ax_num_joints_to_be_opened == None:
+            plt.figure()
+        ax_num_joints_to_be_opened = sns.tsplot(data=list_num_joints_to_be_opened, ax=ax_num_joints_to_be_opened, condition=objective, c=colors_per_objective[objective])
+        ax_num_joints_to_be_opened.set_title("Number of joints not opened yet")
+
+
 
     plt.show()
