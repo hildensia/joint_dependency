@@ -531,18 +531,25 @@ def build_model_prior_3d(world, independent_prior):
     j = world.joints
     n = len(j)
 
+    #uniform
     model_prior = np.array([[0 if x == y
-                             else independent_prior
-    if x == n
-    else 0.7 #1 / np.linalg.norm(
-        #np.asarray(j[x].position) - np.asarray(j[y].position)
-    #)
+                              else 1.0/n
                              for x in range(n + 1)]
-                            for y in range(n)])
-    # normalize
-    model_prior[:, :-1] = ((model_prior.T[:-1, :] /
-                            np.sum(model_prior[:, :-1], 1)).T *
-                           (1 - independent_prior))
+                             for y in range(n)])
+
+    #adversarial:
+    # model_prior = np.array([[0 if x == y
+    #                          else independent_prior
+    # if x == n
+    # else 0.7 #1 / np.linalg.norm(
+    #     #np.asarray(j[x].position) - np.asarray(j[y].position)
+    # #)
+    #                          for x in range(n + 1)]
+    #                         for y in range(n)])
+    # # normalize
+    # model_prior[:, :-1] = ((model_prior.T[:-1, :] /
+    #                         np.sum(model_prior[:, :-1], 1)).T *
+    #                        (1 - independent_prior))
     return model_prior
 
 
@@ -570,7 +577,7 @@ def run_experiment(args):
 
     alpha_prior = np.array([0.7, 0.7])
 
-    independent_prior = .2
+    independent_prior = .7
 
     # the model prior is proportional to 1/distance between the joints
     # if args.use_joint_positions:
