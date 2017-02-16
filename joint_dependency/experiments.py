@@ -167,6 +167,8 @@ def get_best_joint_to_act_and_then_to_check(objective_fnc, experiences, p_same, 
         joint_to_actuate = action[0]  # np.random.randint(0, len(world.joints))
         pos_of_joint_to_actuate = action[1]
 
+
+
         value_this_action = objective_fnc(experiences,
                                pos_of_joint_to_actuate,
                                np.asarray(p_same),
@@ -180,23 +182,6 @@ def get_best_joint_to_act_and_then_to_check(objective_fnc, experiences, p_same, 
                                use_joint_positions,
                                check_joint=joint_to_actuate,
                                current_pos=current_pos)
-
-        # value_second_action = []
-        #
-        # for check_joint in range(num_joints):
-        #     value_second_action.append(objective_fnc(experiences,
-        #                            pos_of_joint_to_actuate,
-        #                            np.asarray(p_same),
-        #                            alpha_prior,
-        #                            model_prior,
-        #                            None,
-        #                            idx_last_successes,
-        #                            joint_to_actuate,
-        #                            idx_last_failures,
-        #                            world,
-        #                            use_joint_positions,
-        #                            check_joint=check_joint,
-        #                        current_pos=current_pos))
 
 
         # Given the action, what is the best joint to check then
