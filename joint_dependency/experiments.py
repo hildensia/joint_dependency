@@ -44,6 +44,7 @@ from blessings import Terminal
 from copy import deepcopy
 import time
 import yaml
+import copy
 import matplotlib.pyplot as mlp
 
 term = Terminal()
@@ -164,7 +165,7 @@ def get_best_joint_to_act_and_then_to_check(objective_fnc, experiences, p_same, 
         joint_to_actuate = action[0]  # np.random.randint(0, len(world.joints))
         pos_of_joint_to_actuate = action[1]
         for check_joint in range(num_joints):
-            values_this_action.append[(check_joint, objective_fnc(experiences,
+            values_this_action.append((check_joint, objective_fnc(experiences,
                                    pos_of_joint_to_actuate,
                                    np.asarray(p_same),
                                    alpha_prior,
@@ -176,8 +177,10 @@ def get_best_joint_to_act_and_then_to_check(objective_fnc, experiences, p_same, 
                                    world,
                                    use_joint_positions,
                                    check_joint=check_joint,
-                                   current_pos=current_pos))]
+                                   current_pos=current_pos)))
         # Given the action, what is the best joint to check then
+        print "move: ", joint_to_actuate
+        print "values ", values_this_action
         best_checked_joint_and_value = rand_max(values_this_action, lambda x: x[1])
         action_values.append((pos_of_joint_to_actuate, best_checked_joint_and_value[0], joint_to_actuate, best_checked_joint_and_value[1]))
         only_values.append((best_checked_joint_and_value[1]))
@@ -444,7 +447,8 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
             current_data["LSBefore" + str(n)] = [p]
 
         # get best action according to objective function
-        if objective_fnc.__name__ is 'cross_entropy' or objective_fnc.__name__ is 'entropy':
+        print objective_fnc.__name__
+        if objective_fnc.__name__ == 'exp_cross_entropy' or objective_fnc.__name__ == 'entropy':
             desired_joint_configurations, checked_joint, desired_joint_to_move, value = \
                 get_best_joint_to_act_and_then_to_check(objective_fnc,
                                experiences,
@@ -542,7 +546,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
             idx_last_failures.append(desired_joint_to_move)
 
         # add new experience
-        new_experience = {'data': final_joint_configurations, 'value': measured_locked_state}
+        new_experience = {'data': final_joint_configurations, 'value': int(measured_locked_state)}
         #print new_experience
         experiences[desired_joint_to_move].append(new_experience)
 
@@ -579,7 +583,15 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
             cPickle.dump((data, metadata), _file)
 
         #Execute the checking action (only if the joint was open, otherwise, replan)!
-        if objective_fnc.__name__ is 'cross_entropy' or objective_fnc.__name__ is 'entropy' and desired_joint_to_move_was_unlocked and idx < N_actions and checked_joint is not desired_joint_to_move:
+        if (objective_fnc.__name__ == 'exp_cross_entropy' or objective_fnc.__name__ == 'entropy') and desired_joint_to_move_was_unlocked and idx < N_actions and checked_joint is not desired_joint_to_move:
+
+            print("Joint was unlocked, we do the second action")
+            print("Joint was unlocked, we do the second action")
+            print("Joint was unlocked, we do the second action")
+            print("Joint was unlocked, we do the second action")
+            print("Joint was unlocked, we do the second action")
+            print("Joint was unlocked, we do the second action")
+
             idx =+1
             current_data = pd.DataFrame(index=[idx])
 
@@ -602,8 +614,13 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
             jpos_before = np.array([int(j.get_q()) for j in world.joints])
 
             # Hack: set the desired configuration to the opposite side of the joint space
-            desired_joint_configurations = jpos_before
-            desired_joint_configurations[checked_joint] = 0 if desired_joint_configurations[checked_joint] < 10 else 180
+            desired_joint_configurations = copy.deepcopy(jpos_before)
+
+            if desired_joint_configurations[checked_joint] < 10 :
+                desired_joint_configurations[checked_joint] = 180
+            else:
+                desired_joint_configurations[checked_joint] = 0
+
             for n, p in enumerate(desired_joint_configurations):
                 current_data["DesiredPos" + str(n)] = [p]
             current_data["DesJToMove"] = [checked_joint]
@@ -638,7 +655,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
             # Check that 'not desired_joint_to_move_was_unlocked' is always == locked_states[desired_joint_to_move]
             if locked_states[checked_joint] != (not desired_joint_to_move_was_unlocked):
-                print "Error: locked_states[desired_joint_to_move] != (not desired_joint_to_move_was_unlocked)"
+                print "Error: locked_states[desired_joint_to_move] != (not desired_joint_to_move_was_unlocked) 444444"
                 exit(-1)
 
 
@@ -647,7 +664,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
 
             # add new experience
-            new_experience = {'data': final_joint_configurations, 'value': measured_locked_state}
+            new_experience = {'data': final_joint_configurations, 'value': int(measured_locked_state)}
             #print new_experience
             experiences[checked_joint].append(new_experience)
 
@@ -753,7 +770,7 @@ def run_experiment(args):
             controllers.append(Controller(world, j))
         action_machine = ActionMachine(world, controllers, .1)
 
-    alpha_prior = np.array([0.7, 0.7])
+    alpha_prior = np.array([0.7, 0.1])
 
     independent_prior = .7
 
