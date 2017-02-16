@@ -147,12 +147,15 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
 
     return best_action
 
+first_actions = 0
+
 def get_best_joint_to_act_and_then_to_check(objective_fnc, experiences, p_same, alpha_prior,
                    model_prior, N_samples, world, locked_states,
                    action_sampling_fnc,
                    idx_last_successes=[], idx_last_failures=[],
                    use_joint_positions=False):
 
+    global first_actions
     actions = action_sampling_fnc(N_samples, world, locked_states)
     num_joints = model_prior.shape[0]
     action_values = []
@@ -161,31 +164,51 @@ def get_best_joint_to_act_and_then_to_check(objective_fnc, experiences, p_same, 
     current_pos = [joint.get_q() for joint in world.joints]
 
     for action in actions:
-        values_this_action = []
         joint_to_actuate = action[0]  # np.random.randint(0, len(world.joints))
         pos_of_joint_to_actuate = action[1]
-        for check_joint in range(num_joints):
-            values_this_action.append((check_joint, objective_fnc(experiences,
-                                   pos_of_joint_to_actuate,
-                                   np.asarray(p_same),
-                                   alpha_prior,
-                                   model_prior,
-                                   None,
-                                   idx_last_successes,
-                                   joint_to_actuate,
-                                   idx_last_failures,
-                                   world,
-                                   use_joint_positions,
-                                   check_joint=check_joint,
-                                   current_pos=current_pos)))
+
+        value_this_action = objective_fnc(experiences,
+                               pos_of_joint_to_actuate,
+                               np.asarray(p_same),
+                               alpha_prior,
+                               model_prior,
+                               None,
+                               idx_last_successes,
+                               joint_to_actuate,
+                               idx_last_failures,
+                               world,
+                               use_joint_positions,
+                               check_joint=joint_to_actuate,
+                               current_pos=current_pos)
+
+        # value_second_action = []
+        #
+        # for check_joint in range(num_joints):
+        #     value_second_action.append(objective_fnc(experiences,
+        #                            pos_of_joint_to_actuate,
+        #                            np.asarray(p_same),
+        #                            alpha_prior,
+        #                            model_prior,
+        #                            None,
+        #                            idx_last_successes,
+        #                            joint_to_actuate,
+        #                            idx_last_failures,
+        #                            world,
+        #                            use_joint_positions,
+        #                            check_joint=check_joint,
+        #                        current_pos=current_pos))
+
+
         # Given the action, what is the best joint to check then
-        print "move: ", joint_to_actuate
-        print "values ", values_this_action
-        best_checked_joint_and_value = rand_max(values_this_action, lambda x: x[1])
-        action_values.append((pos_of_joint_to_actuate, best_checked_joint_and_value[0], joint_to_actuate, best_checked_joint_and_value[1]))
-        only_values.append((best_checked_joint_and_value[1]))
+        action_values.append((pos_of_joint_to_actuate, joint_to_actuate, joint_to_actuate, value_this_action))
+        only_values.append((value_this_action))
     # print("{} -- {}".format(action[1], value))
     best_action = rand_max(action_values, lambda x: x[3])
+
+    if first_actions < -1:
+        print "maunual "
+        best_action = action_values[4-first_actions]
+        first_actions += 1
 
     print "values ", only_values
 
@@ -582,124 +605,6 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
         with open(filename, "w") as _file:
             cPickle.dump((data, metadata), _file)
 
-        #Execute the checking action (only if the joint was open, otherwise, replan)!
-        if (objective_fnc.__name__ == 'exp_cross_entropy' or objective_fnc.__name__ == 'entropy') and desired_joint_to_move_was_unlocked and idx < N_actions and checked_joint is not desired_joint_to_move:
-
-            print("Joint was unlocked, we do the second action")
-            print("Joint was unlocked, we do the second action")
-            print("Joint was unlocked, we do the second action")
-            print("Joint was unlocked, we do the second action")
-            print("Joint was unlocked, we do the second action")
-            print("Joint was unlocked, we do the second action")
-
-            idx =+1
-            current_data = pd.DataFrame(index=[idx])
-
-            lock_states_before = [joint.is_locked() for joint in world.joints]
-            for n, p in enumerate(lock_states_before):
-                current_data["LSBefore" + str(n)] = [p]
-            
-            if checked_joint is None:
-                print("We finished the exploration")
-                print("This usually happens when you use the heuristic_proximity "
-                      "that has as objective to estimate the dependency structure "
-                      "and not to reduce the entropy")
-                break
-            else:
-                print "Desired joint to move: ", checked_joint
-
-            # save the joint and locked states before the action
-            locked_states_before = [joint.is_locked()
-                                    for joint in world.joints]
-            jpos_before = np.array([int(j.get_q()) for j in world.joints])
-
-            # Hack: set the desired configuration to the opposite side of the joint space
-            desired_joint_configurations = copy.deepcopy(jpos_before)
-
-            if desired_joint_configurations[checked_joint] < 10 :
-                desired_joint_configurations[checked_joint] = 180
-            else:
-                desired_joint_configurations[checked_joint] = 0
-
-            for n, p in enumerate(desired_joint_configurations):
-                current_data["DesiredPos" + str(n)] = [p]
-            current_data["DesJToMove"] = [checked_joint]
-
-            for n, p in enumerate(jpos_before):
-                current_data["RealPosBef" + str(n)] = [p]
-
-            if np.all(np.abs(desired_joint_configurations - jpos_before) < .1):
-                desired_joint_to_move_was_unlocked = True
-                # if we want a no-op don't actually call the robot
-                jpos = desired_joint_configurations
-
-            else:
-                # run best action, i.e. move joints to desired position
-                desired_joint_to_move_was_unlocked = action_machine.run_action(desired_joint_configurations, checked_joint)
-
-                # get real position after action (PD-controllers aren't perfect)
-                final_joint_configurations = np.array([int(j.get_q()) for j in world.joints])
-
-            for n, p in enumerate(final_joint_configurations):
-                current_data["RealPos" + str(n)] = [p]
-
-            # save the locked states after the action
-            # test whether the joints are locked or not
-            ##################################################
-            locked_states = [joint.is_locked()
-                             for joint in world.joints]
-
-
-            #measured_locked_state = locked_states[desired_joint_to_move]
-            measured_locked_state = not desired_joint_to_move_was_unlocked
-
-            # Check that 'not desired_joint_to_move_was_unlocked' is always == locked_states[desired_joint_to_move]
-            if locked_states[checked_joint] != (not desired_joint_to_move_was_unlocked):
-                print "Error: locked_states[desired_joint_to_move] != (not desired_joint_to_move_was_unlocked) 444444"
-                exit(-1)
-
-
-            for n, p in enumerate(locked_states):
-                current_data["LSAfter" + str(n)] = [p]
-
-
-            # add new experience
-            new_experience = {'data': final_joint_configurations, 'value': int(measured_locked_state)}
-            #print new_experience
-            experiences[checked_joint].append(new_experience)
-
-            #print "Experiences of joint ", desired_joint_to_move
-            #print experiences[desired_joint_to_move]
-
-            # calculate model posterior
-            posteriors = calc_posteriors(world, experiences, P_same, alpha_prior,
-                                         model_prior)
-            for n, p in enumerate(posteriors):
-                current_data["Posterior" + str(n)] = [p]
-                current_data["Entropy" + str(n)] = [entropy(p)]
-
-
-            #NEW: Compare the posterior and the ground truth for the dependency structure:
-            #print 'Posterior'
-            #print np.array(posteriors)
-            #print 'GT'
-            #print world.dependency_structure_gt
-
-            kls = []
-            for n, (pr, gtr) in enumerate(zip(np.array(posteriors), world.dependency_structure_gt)):
-                kld = entropy(gtr, pr)
-                kls += [kld]
-                current_data["KLD" + str(n)] = kld
-
-            print 'Kullback-Leibler divergences'
-            print kls
-            data = data.append(current_data)
-            progress.update(idx + 1)
-
-            filename = generate_filename(metadata)
-            with open(filename, "w") as _file:
-                cPickle.dump((data, metadata), _file)
-
     progress.finish()
     return data, metadata
 
@@ -770,7 +675,7 @@ def run_experiment(args):
             controllers.append(Controller(world, j))
         action_machine = ActionMachine(world, controllers, .1)
 
-    alpha_prior = np.array([0.7, 0.1])
+    alpha_prior = np.array([0.7, 0.7])
 
     independent_prior = .7
 
