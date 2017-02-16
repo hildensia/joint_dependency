@@ -10,6 +10,7 @@ ctypedef np.float32_t DTYPE_t
 from scipy.special import gammaln
 from scipy.stats import dirichlet, entropy
 
+from joint_dependency.utils import rand_max
 
 def same_segment(probabilities):
     """
@@ -235,9 +236,60 @@ def heuristic_proximity(exp, joint_pos, p_same, alpha_prior, model_prior, model_
     else:
         return -np.inf
 
-
-
 def exp_cross_entropy(experiences, joint_pos,
+                      np.ndarray[double, ndim=3] p_same,
+                      np.ndarray[double, ndim=1] alpha_prior,
+                      np.ndarray[double, ndim=2] model_prior,
+                      np.ndarray[double, ndim=1] model_post=None, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False,
+                      check_joint=None,
+                      current_pos=None):
+    """
+    Compute the expected cross entropy between the current and the augmented
+    model posterior, if we would make the next experience at joint_pos.
+    :param experiences: The experiences made so far (dictionary)
+    :param joint_pos: The positions of all joints (array-like), where the
+                    expected cross entropy should be computed.
+    :param p_same: The probability of two joint states being in the same
+                   segment. (I.e. no change point in between)
+    :param alpha_prior: The prior over the different joint locking states
+    :param model_prior: The prior over the different joint dependency models
+    :return: The expected cross entropy (float)
+    """
+    cdef int i
+    cdef double ce, prob
+    ce = 0.
+
+    if model_post is None:
+        model_post = model_posterior(experiences[check_joint],
+                                     p_same, alpha_prior,
+                                     model_prior[check_joint])
+
+    #print("alphas of %d" % (idx_next_joint))
+    locked = prob_locked(experiences[idx_next_joint], joint_pos, p_same,
+                                 alpha_prior, model_prior[idx_next_joint],
+                                 model_post=model_post).mean()
+
+
+    #print("alphas of %d" % (check_joint))
+    output_likelihood = prob_locked(experiences[check_joint], joint_pos, p_same,
+                                    alpha_prior, model_prior[check_joint],
+                                    model_post=model_post)
+
+    for i, prob in enumerate(output_likelihood.mean()):
+        exp = {'data': joint_pos, 'value': i}
+
+        augmented_exp = list(experiences[check_joint])  # copy the list!
+        augmented_exp.append(exp)  # add the 'new' experience
+
+        augmented_post = model_posterior(augmented_exp, p_same, alpha_prior,
+                                         model_prior[check_joint])
+
+        # print("{} * H({}, {}) {}".format(prob, model_post, augmented_post,
+        #                                  entropy(model_post, augmented_post)))
+        ce += prob * entropy(model_post, augmented_post)
+    return ce
+
+def one_step_look_ahead_ce(experiences, joint_pos,
                       np.ndarray[double, ndim=3] p_same,
                       np.ndarray[double, ndim=1] alpha_prior,
                       np.ndarray[double, ndim=2] model_prior,
@@ -262,6 +314,70 @@ def exp_cross_entropy(experiences, joint_pos,
     cdef double ce, prob
     ce = 0.
 
+    locked_now = prob_locked(experiences[idx_next_joint], current_pos, p_same,
+                                     alpha_prior, model_prior[idx_next_joint],
+                                     model_post=model_post).mean()
+
+    ce_return = 0.
+    #Compute cross entropy of checking a joint
+    model_post_interacted = model_posterior(experiences[idx_next_joint],
+                                 p_same, alpha_prior,
+                                 model_prior[idx_next_joint])
+
+    exp_locked = {'data': current_pos, 'value': 0}
+    augmented_exp_if_locked = list(experiences[idx_next_joint])  # copy the list!
+    augmented_exp_if_locked.append(exp_locked)  # add the 'new' experience
+
+    #print 'here3'
+    augmented_post_if_locked = model_posterior(augmented_exp_if_locked, p_same, alpha_prior,
+                                         model_prior[idx_next_joint])
+
+    ce_locked = locked_now[0] * entropy(model_post_interacted, augmented_post_if_locked)
+
+
+    exp_locked = {'data': current_pos, 'value': 1}
+    augmented_exp_if_unlocked = list(experiences[idx_next_joint])  # copy the list!
+    augmented_exp_if_unlocked.append(exp_locked)  # add the 'new' experience
+
+    #print 'here4'
+    augmented_post_if_unlocked = model_posterior(augmented_exp_if_unlocked, p_same, alpha_prior,
+                                         model_prior[idx_next_joint])
+    ce_unlocked = locked_now[1] * entropy(model_post_interacted, augmented_post_if_unlocked)
+
+    ce_return = ce_locked+ce_unlocked
+
+    if ce_return == 0:
+        ce_return = np.inf
+    #print 'ce_return: %f' % ce_return
+
+    return ce_return
+
+
+def two_step_look_ahead_ce(experiences, joint_pos,
+                      np.ndarray[double, ndim=3] p_same,
+                      np.ndarray[double, ndim=1] alpha_prior,
+                      np.ndarray[double, ndim=2] model_prior,
+                      np.ndarray[double, ndim=1] model_post=None, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False,
+                      check_joint=None,
+                      current_pos=None):
+    """,
+
+    Compute the expected cross entropy between the current and the augmented
+    model posterior, if we would make the next experience at joint_pos.
+    :param experiences: The experiences made so far (dictionary)
+    :param joint_pos: The positions of all joints (array-like), where the
+                    expected cross entropy should be computed.
+    :param p_same: The probability of two joint states being in the same
+                   segment. (I.e. no change point in between)
+    :param alpha_prior: The prior over the different joint locking states
+    :param model_prior: The prior over the different joint dependency models
+    :return: The expected cross entropy (float)
+    """
+    cdef int i
+    cdef int second_action
+    cdef double ce, prob
+    ce = 0.
+
 
 
     locked_now = prob_locked(experiences[idx_next_joint], current_pos, p_same,
@@ -271,6 +387,9 @@ def exp_cross_entropy(experiences, joint_pos,
     ce_return = 0.
     #Compute cross entropy of checking a joint
     if check_joint is idx_next_joint:
+        #print("alphas of %d" % (idx_next_joint))
+
+        #print 'here2'
         model_post_interacted = model_posterior(experiences[idx_next_joint],
                                      p_same, alpha_prior,
                                      model_prior[idx_next_joint])
@@ -283,7 +402,45 @@ def exp_cross_entropy(experiences, joint_pos,
         augmented_post_if_locked = model_posterior(augmented_exp_if_locked, p_same, alpha_prior,
                                              model_prior[idx_next_joint])
 
-        ce_locked = locked_now[0] * entropy(model_post_interacted, augmented_post_if_locked)
+        ce_all_locked =[]
+
+        for second_action in range(5):
+
+            ce_i = 0
+            augmented_exp_if_locked_i = list(experiences[second_action])  # copy the list!
+            exp_locked_i = {'data': current_pos, 'value': 0}
+            augmented_exp_if_locked_i.append(exp_locked_i)  # add the 'new' experience
+
+            model_post_i = model_posterior(augmented_exp_if_locked_i,
+                                         p_same, alpha_prior,
+                                         model_prior[second_action])
+
+            #For the case it is unlocked, we would move it and we could check any other joint
+            #We add the
+            #print("alphas of %d" % (check_joint))
+            output_likelihood_i = prob_locked(augmented_exp_if_locked_i, current_pos, p_same,
+                                            alpha_prior, model_prior[second_action],
+                                            model_post=model_post_i)
+
+            for i, prob in enumerate(output_likelihood_i.mean()):
+
+
+                exp = {'data': joint_pos, 'value': i}
+
+                augmented_exp = list(augmented_exp_if_locked_i)  # copy the list!
+                augmented_exp.append(exp)  # add the 'new' experience
+
+                augmented_post = model_posterior(augmented_exp, p_same, alpha_prior,
+                                                 model_prior[second_action])
+
+                ce_i += prob * entropy(model_post_i, augmented_post)
+
+            ce_all_locked.append(ce_i)
+
+
+        max_second_after_locked = rand_max(ce_all_locked)
+
+        ce_locked = locked_now[0] * (entropy(model_post_interacted, augmented_post_if_locked) + max_second_after_locked)
 
 
         exp_locked = {'data': current_pos, 'value': 1}
@@ -293,12 +450,48 @@ def exp_cross_entropy(experiences, joint_pos,
         #print 'here4'
         augmented_post_if_unlocked = model_posterior(augmented_exp_if_unlocked, p_same, alpha_prior,
                                              model_prior[idx_next_joint])
-        ce_unlocked = locked_now[1] * entropy(model_post_interacted, augmented_post_if_unlocked)
+
+        ce_all_unlocked =[]
+
+        for second_action in range(5):
+
+            ce_i = 0
+            augmented_exp_if_unlocked_i = list(experiences[second_action])  # copy the list!
+            exp_unlocked_i = {'data': current_pos, 'value': 1}
+            augmented_exp_if_unlocked_i.append(exp_unlocked_i)  # add the 'new' experience
+
+            model_post_i = model_posterior(augmented_exp_if_unlocked_i,
+                                         p_same, alpha_prior,
+                                         model_prior[second_action])
+
+            #For the case it is unlocked, we would move it and we could check any other joint
+            #We add the
+            #print("alphas of %d" % (check_joint))
+            output_likelihood_i = prob_locked(augmented_exp_if_unlocked_i, joint_pos, p_same,
+                                            alpha_prior, model_prior[second_action],
+                                            model_post=model_post_i)
+
+            for i, prob in enumerate(output_likelihood_i.mean()):
+
+
+                exp = {'data': joint_pos, 'value': i}
+
+                augmented_exp = list(augmented_exp_if_unlocked_i)  # copy the list!
+                augmented_exp.append(exp)  # add the 'new' experience
+
+                augmented_post = model_posterior(augmented_exp, p_same, alpha_prior,
+                                                 model_prior[second_action])
+
+                ce_i += prob * entropy(model_post_i, augmented_post)
+
+            ce_all_unlocked.append(ce_i)
+
+        max_second_after_unlocked = rand_max(ce_all_unlocked)
+
+        ce_unlocked = locked_now[1] * (entropy(model_post_interacted, augmented_post_if_unlocked) + max_second_after_unlocked)
+
 
         ce_return = ce_locked+ce_unlocked
-
-        if ce_return == 0:
-            ce_return = np.inf
         #print 'ce_return: %f' % ce_return
 
     #Compute the cross entropy of checking another joint after moving the joint (weighted by the probability of the joint being unlocked)
@@ -324,10 +517,10 @@ def exp_cross_entropy(experiences, joint_pos,
                                      model_prior[idx_next_joint])
 
         ce_unlocked = locked_now[1] * entropy(model_post_interacted, augmented_post_if_unlocked)
-        
+
 
         #For the case it is unlocked, we would move it and we could check any other joint
-        #We add the 
+        #We add the
         #print("alphas of %d" % (check_joint))
         output_likelihood = prob_locked(experiences[check_joint], joint_pos, p_same,
                                         alpha_prior, model_prior[check_joint],
@@ -335,18 +528,13 @@ def exp_cross_entropy(experiences, joint_pos,
 
         for i, prob in enumerate(output_likelihood.mean()):
             exp = {'data': joint_pos, 'value': i}
-            
+
             augmented_exp = list(experiences[check_joint])  # copy the list!
             augmented_exp.append(exp)  # add the 'new' experience
 
             augmented_post = model_posterior(augmented_exp, p_same, alpha_prior,
                                              model_prior[check_joint])
 
-            #print 'entropy: %f' % entropy(model_post, augmented_post)
-            #print 'prob: %f' % prob
-
-            # print("{} * H({}, {}) {}".format(prob, model_post, augmented_post,
-            #                                  entropy(model_post, augmented_post)))
             ce += prob * entropy(model_post, augmented_post)
             #print 'ce: %f' % ce
 
@@ -357,7 +545,6 @@ def exp_cross_entropy(experiences, joint_pos,
         #print 'ce_return: %f' % ce_return
 
     return ce_return
-
 
 def exp_neg_entropy(experiences, joint_pos, p_same, alpha_prior, model_prior, model_post=None, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False, check_joint=None, current_pos=None):
     ce = 0.

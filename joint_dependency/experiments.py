@@ -5,7 +5,7 @@ from joint_dependency.simulation import (create_world, create_lockbox,
                                          ActionMachine)
 from joint_dependency.recorder import Record
 from joint_dependency.inference import (model_posterior, same_segment,
-                                        exp_cross_entropy, random_objective,
+                                        exp_cross_entropy, one_step_look_ahead_ce, random_objective,
                                         exp_neg_entropy, heuristic_proximity,
                                         prob_locked)
 
@@ -456,7 +456,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
         # get best action according to objective function
         print objective_fnc.__name__
-        if objective_fnc.__name__ == 'exp_cross_entropy' or objective_fnc.__name__ == 'entropy':
+        if objective_fnc.__name__ == 'one_step_look_ahead_ce':
             desired_joint_configurations, checked_joint, desired_joint_to_move, value = \
                 get_best_joint_to_act_and_then_to_check(objective_fnc,
                                experiences,
@@ -688,6 +688,8 @@ def run_experiment(args):
         objective = exp_neg_entropy
     elif args.objective == "cross_entropy":
         objective = exp_cross_entropy
+    elif args.objective == "1s_cross_entropy":
+        objective = one_step_look_ahead_ce
     elif args.objective == "heuristic_proximity":
         objective = heuristic_proximity
     else:
@@ -725,7 +727,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", "--objective", required=True,
                         help="The objective to optimize for exploration",
-                        choices=['random', 'entropy', 'cross_entropy',
+                        choices=['random', 'entropy', 'cross_entropy', '1s_cross_entropy',
                                  'heuristic_proximity'])
     parser.add_argument("-c", "--changepoint", action='store_true',
                         help="Should change points used as prior")
