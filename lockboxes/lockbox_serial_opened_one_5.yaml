@@ -1,7 +1,7 @@
 #The number of joints
 n_joints: 5
 #Spatial arrangement of the joints of the lockbox: useful to name the generated pickle files
-spatial_arrangement: 'serial_opened_already_one'
+spatial_arrangement: 'serial_opened_one'
 #The positions of the joints in R^3. Change this in order to make different spatial layouts of the lockbox
 joint_positions: [
     [0, 0, 0],
