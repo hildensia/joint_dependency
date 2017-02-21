@@ -71,12 +71,12 @@ def create_ros_lockbox_new(num_of_joints=5, noise=None, use_joint_positions=Fals
     dependency_structure_gt = np.zeros((num_of_joints, num_of_joints + 1))
 
     for i in range(num_of_joints):
-        joints.append(RosJoint("lock_{}".format(i), i,
+        joints.append(RosJoint("lock_{}".format(i), i+1,
                               limits=lockbox_joint_limits[i],
                               position=lockbox_joint_positions[i]
                               ))
 
-        print("Joint {}{} opens at {} - {}. Initially at ".format(i,
+        print("Joint {}{} opens at {} - {}.".format(i,
                                                                   (" [%.1f, %.1f, %.1f]" % tuple(
                                                                       lockbox_joint_positions[i].tolist())) if
                                                                   lockbox_joint_positions[i] is not None else "",

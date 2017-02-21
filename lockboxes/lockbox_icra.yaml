@@ -25,11 +25,11 @@ joint_dampings: [
 [15, 200, 15]]
 #The lower and upper limits of each joint's joint range. In the current version this can be the same for each joint
 joint_limits: [
-[0, 180],
-[0, 180],
-[0, 180],
-[0, 180],
-[0, 180]]
+[0, 100],
+[0, 100],
+[0, 100],
+[0, 100],
+[0, 100]]
 #A list of lists, where the list at index i represents which other joints can lock joint i. Edit this to design different topologies for the dependency structure
 joint_dependencies: [
 [],
