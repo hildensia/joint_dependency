@@ -134,6 +134,10 @@ class RosJoint(object):
 class RosWorld(object):
     def __init__(self, joints):
         self.joints = joints
+        self.dependency_structure_gt = []
+
+    def set_dependency_structure_gt(self, ds_gt):
+        self.dependency_structure_gt = ds_gt
 
 
 class RosActionMachine(object):
