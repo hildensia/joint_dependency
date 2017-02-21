@@ -11,7 +11,7 @@ from joint_dependency.inference import (model_posterior, same_segment,
 
 try:
     from joint_dependency.ros_adapter import (RosActionMachine,
-                                              create_ros_lockbox)
+                                              create_ros_lockbox, create_ros_lockbox_new)
 except ImportError:
     print("Disable ROS.")
 
@@ -648,7 +648,11 @@ def run_experiment(args):
     Record.records[pid] = pd.DataFrame()
 
     if args.use_ros:
-        world = create_ros_lockbox()
+        #world = create_ros_lockbox()
+        world = create_ros_lockbox_new(
+            use_joint_positions=args.use_joint_positions,
+            use_simple_locking_state=args.use_simple_locking_state,
+            lockboxfile=args.lockboxfile)
         action_machine = RosActionMachine(world)
     else:
         world = create_lockbox(
