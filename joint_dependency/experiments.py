@@ -11,7 +11,9 @@ from joint_dependency.inference import (model_posterior, same_segment,
 
 try:
     from joint_dependency.ros_adapter import (RosActionMachine,
-                                              create_ros_lockbox, create_ros_lockbox_new)
+                                              create_ros_lockbox,
+                                              create_ros_lockbox_new)
+
 except ImportError:
     print("Disable ROS.")
 
@@ -617,24 +619,24 @@ def build_model_prior_3d(world, independent_prior):
     n = len(j)
 
     # #uniform
-    # model_prior = np.array([[0 if x == y
-    #                           else 1.0/n
-    #                          for x in range(n + 1)]
-    #                          for y in range(n)])
+    model_prior = np.array([[0 if x == y
+                              else 1.0/n
+                             for x in range(n + 1)]
+                             for y in range(n)])
 
     #adversarial:
-    model_prior = np.array([[0 if x == y
-                             else independent_prior
-    if x == n
-    else 0.7 #1 / np.linalg.norm(
-        #np.asarray(j[x].position) - np.asarray(j[y].position)
-    #)
-                             for x in range(n + 1)]
-                            for y in range(n)])
-    # normalize
-    model_prior[:, :-1] = ((model_prior.T[:-1, :] /
-                            np.sum(model_prior[:, :-1], 1)).T *
-                           (1 - independent_prior))
+    # model_prior = np.array([[0 if x == y
+    #                          else independent_prior
+    # if x == n
+    # else 0.7 #1 / np.linalg.norm(
+    #     #np.asarray(j[x].position) - np.asarray(j[y].position)
+    # #)
+    #                          for x in range(n + 1)]
+    #                         for y in range(n)])
+    # # normalize
+    # model_prior[:, :-1] = ((model_prior.T[:-1, :] /
+    #                         np.sum(model_prior[:, :-1], 1)).T *
+    #                        (1 - independent_prior))
     return model_prior
 
 
