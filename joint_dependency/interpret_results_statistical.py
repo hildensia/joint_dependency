@@ -76,7 +76,7 @@ if __name__ == "__main__":
                         help="pickle files",nargs='+')
     args = parser.parse_args()
 
-    objectives = ["random_objective", "exp_neg_entropy", "exp_cross_entropy", "heuristic_proximity"]
+    objectives = ["random_objective", "exp_neg_entropy", "exp_cross_entropy", "heuristic_proximity","one_step_look_ahead_ce"]#["one_step_look_ahead_ce"]#
 
     dfs_per_objective={objective:[] for objective in objectives}
     metas_per_objective={objective:[] for objective in objectives}
@@ -84,7 +84,8 @@ if __name__ == "__main__":
     colors_per_objective={"random_objective": 'b',
                           "exp_neg_entropy":'g',
                           "exp_cross_entropy":'r',
-                          "heuristic_proximity":'k'}
+                          "heuristic_proximity":'k',
+                          "one_step_look_ahead_ce":'c'}
 
 #    dfs=[]
 #    metas=[]

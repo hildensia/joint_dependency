@@ -346,7 +346,7 @@ def one_step_look_ahead_ce(experiences, joint_pos,
 
     ce_return = ce_locked+ce_unlocked
 
-    if ce_return == 0:
+    if ce_return < 1e-10:
         ce_return = np.inf
     #print 'ce_return: %f' % ce_return
 
