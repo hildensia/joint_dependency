@@ -1,5 +1,7 @@
 #The number of joints
 n_joints: 5
+#Spatial arrangement of the joints of the lockbox: useful to name the generated pickle files
+spatial_arrangement: 'lockbox_icra_serial'
 #The positions of the joints in R^3. Change this in order to make different spatial layouts of the lockbox
 joint_positions: [
     [6, 1.2, 0],
@@ -23,11 +25,11 @@ joint_dampings: [
 [15, 200, 15]]
 #The lower and upper limits of each joint's joint range. In the current version this can be the same for each joint
 joint_limits: [
-[0, 180],
-[0, 180],
-[0, 180],
-[0, 180],
-[0, 180]]
+[0, 100],
+[0, 100],
+[0, 100],
+[0, 100],
+[0, 100]]
 #A list of lists, where the list at index i represents which other joints can lock joint i. Edit this to design different topologies for the dependency structure
 joint_dependencies: [
 [],
