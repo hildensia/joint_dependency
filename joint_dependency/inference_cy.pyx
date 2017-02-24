@@ -619,7 +619,7 @@ def two_step_look_ahead_ce(experiences, joint_pos,
 
     return ce_return
 
-def exp_neg_entropy(experiences, 
+def exp_neg_entropy_new(experiences,
   joint_pos, 
   p_same, 
   alpha_prior, 
@@ -632,47 +632,77 @@ def exp_neg_entropy(experiences,
   use_joint_positions=False,
   check_joint=None, 
   current_pos=None):
-    
-    locked_now = prob_locked(experiences[idx_next_joint], current_pos, p_same,
-                                     alpha_prior, model_prior[idx_next_joint],
-                                     model_post=model_post).mean()
 
-    ce_return = 0.
-    #Compute cross entropy of checking a joint
-    model_post_interacted = model_posterior(experiences[idx_next_joint],
-                                 p_same, alpha_prior,
-                                 model_prior[idx_next_joint])
+    n_joints = len(experiences)
+    ce_return = 0.0
+    print "----------------------"
+    for j in range(n_joints):
+        if j == idx_next_joint:
+            #print "--------------------------"
+            #print experiences
+            locked_now = prob_locked(experiences[idx_next_joint], current_pos, p_same,
+                                             alpha_prior, model_prior[idx_next_joint],
+                                             model_post=model_post).mean()
 
-    exp_locked = {'data': current_pos, 'value': 0}
-    augmented_exp_if_locked = list(experiences[idx_next_joint])  # copy the list!
-    augmented_exp_if_locked.append(exp_locked)  # add the 'new' experience
 
-    #print 'here3'
-    augmented_post_if_locked = model_posterior(augmented_exp_if_locked, p_same, alpha_prior,
+            #Compute cross entropy of checking a joint
+            model_post_interacted = model_posterior(experiences[idx_next_joint],
+                                         p_same, alpha_prior,
                                          model_prior[idx_next_joint])
 
-    ce_locked = locked_now[0] * entropy(augmented_post_if_locked)
+            exp_locked = {'data': current_pos, 'value': 0}
+            augmented_exp_if_locked = list(experiences[idx_next_joint])  # copy the list!
+            augmented_exp_if_locked.append(exp_locked)  # add the 'new' experience
+            #print augmented_exp_if_locked
+
+            #print 'here3'
+            augmented_post_if_locked = model_posterior(augmented_exp_if_locked, p_same, alpha_prior,
+                                                 model_prior[idx_next_joint])
+
+            ce_locked = locked_now[0] * entropy(augmented_post_if_locked)
 
 
-    exp_locked = {'data': current_pos, 'value': 1}
-    augmented_exp_if_unlocked = list(experiences[idx_next_joint])  # copy the list!
-    augmented_exp_if_unlocked.append(exp_locked)  # add the 'new' experience
+            exp_locked = {'data': current_pos, 'value': 1}
+            augmented_exp_if_unlocked = list(experiences[idx_next_joint])  # copy the list!
+            augmented_exp_if_unlocked.append(exp_locked)  # add the 'new' experience
+            #print augmented_exp_if_unlocked
+            #print 'here4'
+            augmented_post_if_unlocked = model_posterior(augmented_exp_if_unlocked, p_same, alpha_prior,
+                                                 model_prior[idx_next_joint])
+            ce_unlocked = locked_now[1] * entropy(augmented_post_if_unlocked)
 
-    #print 'here4'
-    augmented_post_if_unlocked = model_posterior(augmented_exp_if_unlocked, p_same, alpha_prior,
-                                         model_prior[idx_next_joint])
-    ce_unlocked = locked_now[1] * entropy(augmented_post_if_unlocked)
+            ce_return += ce_locked+ce_unlocked
 
-    ce_return = ce_locked+ce_unlocked
-    
-    ce_return = -ce_return
+            print 'joint '
+            print j
+            print 'ce_locked'
+            print ce_locked
+            print 'ce_unlocked'
+            print ce_unlocked
+
+            print 'sum'
+            print ce_locked+ce_unlocked
+
+            print 'locked:'
+            print locked_now[0]
+            print 'unlocked:'
+            print locked_now[1]
+
+
+
+        else:
+            model_post_j = model_posterior(experiences[j],
+                                     p_same, alpha_prior,
+                                     model_prior[j])
+            ce_return += entropy(model_post_j)
+            print entropy(model_post_j)
 
     if ce_return < 1e-10:
-        ce_return = np.inf
+        ce_return = -np.inf
+    print -ce_return
+    return -ce_return
 
-    return ce_return
-
-def exp_neg_entropy_old(experiences, joint_pos, p_same, alpha_prior, model_prior, model_post=None, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False, check_joint=None, current_pos=None):
+def exp_neg_entropy(experiences, joint_pos, p_same, alpha_prior, model_prior, model_post=None, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False, check_joint=None, current_pos=None):
     ce = 0.
 
     output_likelihood = prob_locked(experiences[check_joint], joint_pos, p_same,

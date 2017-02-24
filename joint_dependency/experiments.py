@@ -136,7 +136,8 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
 
     return best_action
 
-first_actions = 0
+first_actions = range(0)
+np.random.shuffle(first_actions)
 
 def get_best_joint_to_act_and_then_to_check(objective_fnc, experiences, p_same, alpha_prior,
                    model_prior, N_samples, world, locked_states,
@@ -176,10 +177,9 @@ def get_best_joint_to_act_and_then_to_check(objective_fnc, experiences, p_same, 
     # print("{} -- {}".format(action[1], value))
     best_action = rand_max(action_values, lambda x: x[3])
 
-    if first_actions < -1:
-        print "maunual "
-        best_action = action_values[4-first_actions]
-        first_actions += 1
+    if len(first_actions) > 0:
+        print "manual "
+        best_action = action_values[first_actions.pop(0)]
 
     print "values ", only_values
 
