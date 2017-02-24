@@ -236,7 +236,7 @@ def heuristic_proximity(exp, joint_pos, p_same, alpha_prior, model_prior, model_
     else:
         return -np.inf
 
-def exp_cross_entropy(experiences, joint_pos,
+def exp_cross_entropy(experiences, desired_joint_pos,
                       np.ndarray[double, ndim=3] p_same,
                       np.ndarray[double, ndim=1] alpha_prior,
                       np.ndarray[double, ndim=2] model_prior,
@@ -245,9 +245,9 @@ def exp_cross_entropy(experiences, joint_pos,
                       current_pos=None):
     """
     Compute the expected cross entropy between the current and the augmented
-    model posterior, if we would make the next experience at joint_pos.
+    model posterior, if we would make the next experience at desired_joint_pos.
     :param experiences: The experiences made so far (dictionary)
-    :param joint_pos: The positions of all joints (array-like), where the
+    :param desired_joint_pos: The positions of all joints (array-like), where the
                     expected cross entropy should be computed.
     :param p_same: The probability of two joint states being in the same
                    segment. (I.e. no change point in between)
@@ -259,35 +259,108 @@ def exp_cross_entropy(experiences, joint_pos,
     cdef double ce, prob
     ce = 0.
 
-    if model_post is None:
-        model_post = model_posterior(experiences[check_joint],
-                                     p_same, alpha_prior,
-                                     model_prior[check_joint])
+    n_joints = len(experiences)
+
+#    if model_post is None:
+#        model_post = model_posterior(experiences[check_joint],
+#                                     p_same, alpha_prior,
+#                                     model_prior[check_joint])
+#
+#    #print("alphas of %d" % (idx_next_joint))
+#    locked = prob_locked(experiences[idx_next_joint], desired_joint_pos, p_same,
+#                                 alpha_prior, model_prior[idx_next_joint],
+#                                 model_post=model_post).mean()
+#
+#
+#    #print("alphas of %d" % (check_joint))
+#    output_likelihood = prob_locked(experiences[check_joint], desired_joint_pos, p_same,
+#                                    alpha_prior, model_prior[check_joint],
+#                                    model_post=model_post)
+#
+#    for i, prob in enumerate(output_likelihood.mean()):
+#        exp = {'data': desired_joint_pos, 'value': i}
+#
+#        augmented_exp = list(experiences[check_joint])  # copy the list!
+#        augmented_exp.append(exp)  # add the 'new' experience
+#
+#        augmented_post = model_posterior(augmented_exp, p_same, alpha_prior,
+#                                         model_prior[check_joint])
+#
+#        # print("{} * H({}, {}) {}".format(prob, model_post, augmented_post,
+#        #                                  entropy(model_post, augmented_post)))
+#        ce += prob * entropy(model_post, augmented_post)
+#    return ce
+
+
+ #   if model_post is None:
+ #       model_post = model_posterior(experiences[check_joint],
+ #                                    p_same, alpha_prior,
+ #                                    model_prior[check_joint])
+
 
     #print("alphas of %d" % (idx_next_joint))
-    locked = prob_locked(experiences[idx_next_joint], joint_pos, p_same,
+    locked = prob_locked(experiences[idx_next_joint], current_pos, p_same,
                                  alpha_prior, model_prior[idx_next_joint],
                                  model_post=model_post).mean()
 
 
     #print("alphas of %d" % (check_joint))
-    output_likelihood = prob_locked(experiences[check_joint], joint_pos, p_same,
-                                    alpha_prior, model_prior[check_joint],
-                                    model_post=model_post)
 
-    for i, prob in enumerate(output_likelihood.mean()):
-        exp = {'data': joint_pos, 'value': i}
+    expected_cross_entropies_for_next_joints=np.zeros(n_joints)
 
-        augmented_exp = list(experiences[check_joint])  # copy the list!
-        augmented_exp.append(exp)  # add the 'new' experience
+    #Assuming that the joint we want to actuate is locked -> after the actuation the joint configuration is the same (current_pos)
+    #it is now
+    #Then we augment the experiences of each joint with this virtual configuration and compute the information of testing it
 
-        augmented_post = model_posterior(augmented_exp, p_same, alpha_prior,
-                                         model_prior[check_joint])
+    for j in range(n_joints):
 
-        # print("{} * H({}, {}) {}".format(prob, model_post, augmented_post,
-        #                                  entropy(model_post, augmented_post)))
-        ce += prob * entropy(model_post, augmented_post)
-    return ce
+        model_post_j = model_posterior(experiences[j],
+                                     p_same, alpha_prior,
+                                     model_prior[j])
+
+        p_locked_j = prob_locked(experiences[j], current_pos, p_same,
+                                alpha_prior, model_prior[j],
+                                model_post=model_post_j)
+
+        for i, prob_j in enumerate(p_locked_j.mean()):
+            exp = {'data': current_pos, 'value': i}
+
+            augmented_exp = list(experiences[j])  # copy the list!
+            augmented_exp.append(exp)  # add the 'new' experience
+
+            augmented_post_j = model_posterior(augmented_exp, p_same, alpha_prior,
+                                             model_prior[j])
+
+            expected_cross_entropies_for_next_joints[j] += locked[0]*prob_j * entropy(model_post_j, augmented_post_j)
+
+    #Assuming that the joint we want to actuate is unlocked -> after the actuation the joint configuration is different (desired_joint_pos)
+    #to what it is now
+    #Then we augment the experiences of each joint with this virtual configuration and compute the information of testing it
+    for j in range(n_joints):
+
+        model_post_j = model_posterior(experiences[j],
+                                     p_same, alpha_prior,
+                                     model_prior[j])
+
+        p_locked_j = prob_locked(experiences[j], desired_joint_pos, p_same,
+                                alpha_prior, model_prior[j],
+                                model_post=model_post_j)
+
+        for i, prob_j in enumerate(p_locked_j.mean()):
+            exp = {'data': desired_joint_pos, 'value': i}
+
+            augmented_exp = list(experiences[j])  # copy the list!
+            augmented_exp.append(exp)  # add the 'new' experience
+
+            augmented_post_j = model_posterior(augmented_exp, p_same, alpha_prior,
+                                             model_prior[j])
+
+            expected_cross_entropies_for_next_joints[j] += locked[1]*prob_j * entropy(model_post_j, augmented_post_j)
+
+
+    value = np.sum(expected_cross_entropies_for_next_joints)
+
+    return value
 
 def one_step_look_ahead_ce(experiences, joint_pos,
                       np.ndarray[double, ndim=3] p_same,

@@ -108,6 +108,7 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
     num_joints = model_prior.shape[0]
     action_values = []
     only_values = []
+
     for action in actions:
         value = 0
         joint_to_actuate = action[0]  # np.random.randint(0, len(world.joints))
@@ -133,20 +134,6 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
 
     print "values ", only_values
 
-    # joint_pos_now =[]
-    # for joint in world.joints:
-    #     joint_pos_now.append(joint.get_q())
-    #
-    # for joint in range(num_joints):
-    #     model_post = model_posterior(experiences[joint],
-    #                                  np.asarray(p_same), alpha_prior,
-    #                                  model_prior[joint])
-    #     d = prob_locked(experiences[joint], joint_pos_now, np.asarray(p_same),
-    #                 alpha_prior, model_prior[joint],
-    #                 model_post=model_post)
-    #     print "joint: ", joint
-    #     print "d.alpha: " ,d.alpha
-
     return best_action
 
 first_actions = 0
@@ -164,12 +151,9 @@ def get_best_joint_to_act_and_then_to_check(objective_fnc, experiences, p_same, 
     only_values = []
 
     current_pos = [joint.get_q() for joint in world.joints]
-
     for action in actions:
         joint_to_actuate = action[0]  # np.random.randint(0, len(world.joints))
         pos_of_joint_to_actuate = action[1]
-
-
 
         value_this_action = objective_fnc(experiences,
                                pos_of_joint_to_actuate,
@@ -198,20 +182,6 @@ def get_best_joint_to_act_and_then_to_check(objective_fnc, experiences, p_same, 
         first_actions += 1
 
     print "values ", only_values
-
-    # joint_pos_now =[]
-    # for joint in world.joints:
-    #     joint_pos_now.append(joint.get_q())
-    #
-    # for joint in range(num_joints):
-    #     model_post = model_posterior(experiences[joint],
-    #                                  np.asarray(p_same), alpha_prior,
-    #                                  model_prior[joint])
-    #     d = prob_locked(experiences[joint], joint_pos_now, np.asarray(p_same),
-    #                 alpha_prior, model_prior[joint],
-    #                 model_post=model_post)
-    #     print "joint: ", joint
-    #     print "d.alpha: " ,d.alpha
 
     return best_action
 
@@ -458,7 +428,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
         # get best action according to objective function
         print objective_fnc.__name__
-        if objective_fnc.__name__ == 'one_step_look_ahead_ce':
+        if objective_fnc.__name__ in ['one_step_look_ahead_ce','exp_cross_entropy']:
             desired_joint_configurations, checked_joint, desired_joint_to_move, value = \
                 get_best_joint_to_act_and_then_to_check(objective_fnc,
                                experiences,
@@ -583,8 +553,9 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
             kls += [kld]
             current_data["KLD" + str(n)] = kld
 
-        print 'Kullback-Leibler divergences'
-        print kls
+        #print 'Kullback-Leibler divergences'
+        #print kls
+        #print kls
         data = data.append(current_data)
         progress.update(idx + 1)
 

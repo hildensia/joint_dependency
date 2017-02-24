@@ -172,8 +172,8 @@ def plot_joints_to_be_opened(df, meta, num_joints=None):
     return f, ax
 
 def open_pickle_file(pkl_file):
-    with open(pkl_file) as f:
-        df, meta = cPickle.load(f)
+
+    df, meta = pd.read_pickle(pkl_file)
         
     return df, meta
 
