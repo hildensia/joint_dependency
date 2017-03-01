@@ -209,6 +209,18 @@ def random_objective(exp, joint_pos, p_same, alpha_prior, model_prior, model_pos
                                    current_pos=None):
     return np.random.uniform()
 
+
+def scripted_heuristic(exp, joint_pos, p_same, alpha_prior, model_prior, model_post=None, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False, check_joint=None,
+                                   current_pos=None):
+    print scripted_heuristic.ugly_scriptfile
+    return np.random.uniform()
+
+
+
+def scripted_random(exp, joint_pos, p_same, alpha_prior, model_prior, model_post=None, idx_last_successes=[],idx_next_joint=None,idx_last_failures=[], world=None, use_joint_positions=False, check_joint=None,
+                                   current_pos=None):
+    return np.random.uniform()
+
 def heuristic_proximity(exp, joint_pos, p_same, alpha_prior, model_prior, model_post=None, idx_last_successes=None,idx_next_joint=None,idx_last_failures=None, world=None, use_joint_positions=False, check_joint=None,current_pos=None):
 
 

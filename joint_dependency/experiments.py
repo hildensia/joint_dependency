@@ -6,7 +6,7 @@ from joint_dependency.simulation import (create_world, create_lockbox,
 from joint_dependency.recorder import Record
 from joint_dependency.inference import (model_posterior, same_segment,
                                         exp_cross_entropy, one_step_look_ahead_ce, random_objective,
-                                        exp_neg_entropy, heuristic_proximity,
+                                        exp_neg_entropy, heuristic_proximity, scripted_heuristic, scripted_random,
                                         prob_locked)
 
 try:
@@ -97,17 +97,113 @@ def compute_p_same(p_cp):
         p_same.append(same_segment(pcp))
     return p_same
 
-
+ugly_scripted_counter = 0
+ugly_scripted_file = None
+ugly_last_desired_actions=  [0,0,0,0,0]
+ugly_was_tried = []
+ugly_was_moved = [False,False,False,False,False]
 def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
                    model_prior, N_samples, world, locked_states,
                    action_sampling_fnc,
                    idx_last_successes=[], idx_last_failures=[],
                    use_joint_positions=False):
 
+    global ugly_scripted_counter
+    global ugly_scripted_file
+    global ugly_last_desired_actions
+    global ugly_was_moved
+    global ugly_was_tried
+    print "getbestpoint"
+    ugly_df, ugly_meta = ugly_scripted_file
+
+    if ugly_scripted_counter > 0:
+        latest_moved = np.array([ugly_df["RealPos0"].iloc[ugly_scripted_counter-1],
+         ugly_df["RealPos1"].iloc[ugly_scripted_counter-1],
+         ugly_df["RealPos2"].iloc[ugly_scripted_counter-1],
+         ugly_df["RealPos3"].iloc[ugly_scripted_counter-1],
+         ugly_df["RealPos4"].iloc[ugly_scripted_counter-1]]) > 50
+
+        ugly_is_was_moved_changed = any(ugly_was_moved != np.logical_or(ugly_was_moved, latest_moved))
+        if ugly_is_was_moved_changed:
+            ugly_was_tried=[]
+        print "was_moved_changed", ugly_is_was_moved_changed
+        ugly_was_moved = np.logical_or(ugly_was_moved, latest_moved)
+
     actions = action_sampling_fnc(N_samples, world, locked_states)
     num_joints = model_prior.shape[0]
     action_values = []
     only_values = []
+
+    # Index([u'LSBefore0', u'LSBefore1', u'LSBefore2', u'LSBefore3', u'LSBefore4',
+    #        u'DesiredPos0', u'DesiredPos1', u'DesiredPos2', u'DesiredPos3',
+    #        u'DesiredPos4', u'DesJToMove', u'RealPosBef0', u'RealPosBef1',
+    #        u'RealPosBef2', u'RealPosBef3', u'RealPosBef4', u'RealPos0',
+    #        u'RealPos1', u'RealPos2', u'RealPos3', u'RealPos4', u'LSAfter0',
+    #        u'LSAfter1', u'LSAfter2', u'LSAfter3', u'LSAfter4', u'Posterior0',
+    #        u'Entropy0', u'Posterior1', u'Entropy1', u'Posterior2', u'Entropy2',
+    #        u'Posterior3', u'Entropy3', u'Posterior4', u'Entropy4', u'KLD0',
+    #        u'KLD1', u'KLD2', u'KLD3', u'KLD4'],
+    #       dtype='object')
+
+    if objective_fnc.__name__ in ["scripted_heuristic","scripted_random"]:
+
+
+        desired_joint_configurations=  np.array([ugly_df["DesiredPos0"].iloc[ugly_scripted_counter],
+               ugly_df["DesiredPos1"].iloc[ugly_scripted_counter],
+               ugly_df["DesiredPos2"].iloc[ugly_scripted_counter],
+               ugly_df["DesiredPos3"].iloc[ugly_scripted_counter],
+               ugly_df["DesiredPos4"].iloc[ugly_scripted_counter]])
+        desired_joint_configurations[desired_joint_configurations > 100] = 100
+        real_joint_configurations = [0,0,0,0,0]
+
+
+
+        differences = np.fabs(np.array(desired_joint_configurations) - np.array(ugly_last_desired_actions))
+
+        ugly_last_desired_actions = [ugly_df["RealPos0"].iloc[ugly_scripted_counter],
+               ugly_df["RealPos1"].iloc[ugly_scripted_counter],
+               ugly_df["RealPos2"].iloc[ugly_scripted_counter],
+               ugly_df["RealPos3"].iloc[ugly_scripted_counter],
+               ugly_df["RealPos4"].iloc[ugly_scripted_counter]]
+
+        #import ipdb
+        #ipdb.set_trace()
+        print "________________"
+        desired_joint_to_move = np.argmax(differences)
+        #print objective_fnc.__name__
+        if objective_fnc.__name__ == "scripted_heuristic":
+            print desired_joint_to_move, ugly_was_moved
+            while ugly_was_moved[desired_joint_to_move] or desired_joint_to_move in ugly_was_tried:
+                print "--loop"
+                print ugly_was_moved
+                print ugly_was_tried
+                ugly_scripted_counter = ugly_scripted_counter + 1
+                desired_joint_configurations = np.array([ugly_df["DesiredPos0"].iloc[ugly_scripted_counter],
+                                                ugly_df["DesiredPos1"].iloc[ugly_scripted_counter],
+                                                ugly_df["DesiredPos2"].iloc[ugly_scripted_counter],
+                                                ugly_df["DesiredPos3"].iloc[ugly_scripted_counter],
+                                                ugly_df["DesiredPos4"].iloc[ugly_scripted_counter]])
+                desired_joint_configurations[desired_joint_configurations>100] = 100
+                real_joint_configurations = [0, 0, 0, 0, 0]
+
+                differences = np.fabs(np.array(desired_joint_configurations) - np.array(ugly_last_desired_actions))
+
+                ugly_last_desired_actions = [ugly_df["RealPos0"].iloc[ugly_scripted_counter],
+                                             ugly_df["RealPos1"].iloc[ugly_scripted_counter],
+                                             ugly_df["RealPos2"].iloc[ugly_scripted_counter],
+                                             ugly_df["RealPos3"].iloc[ugly_scripted_counter],
+                                             ugly_df["RealPos4"].iloc[ugly_scripted_counter]]
+
+                # import ipdb
+                # ipdb.set_trace()
+
+                desired_joint_to_move = np.argmax(differences)
+
+
+        ugly_scripted_counter = ugly_scripted_counter + 1
+        ugly_was_tried.append(desired_joint_to_move)
+        print "before leave"
+        return (desired_joint_configurations, None, desired_joint_to_move, None)
 
     for action in actions:
         value = 0
@@ -133,7 +229,8 @@ def get_best_point(objective_fnc, experiences, p_same, alpha_prior,
     best_action = rand_max(action_values, lambda x: x[3])
 
     print "values ", only_values
-
+    print best_action
+    print type(best_action)
     return best_action
 
 first_actions = range(0)
@@ -420,6 +517,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
     
         
     for idx in range(N_actions):
+        print "begin loop"
         current_data = pd.DataFrame(index=[idx])
 
         lock_states_before = [joint.is_locked() for joint in world.joints]
@@ -466,7 +564,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
             break
         else:
             print "Desired joint to move: ", desired_joint_to_move
-
+        print "a"
         for n, p in enumerate(desired_joint_configurations):
             current_data["DesiredPos" + str(n)] = [p]
         current_data["DesJToMove"] = [desired_joint_to_move]
@@ -478,20 +576,23 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
         for n, p in enumerate(jpos_before):
             current_data["RealPosBef" + str(n)] = [p]
-
+        print "b"
 
         if np.all(np.abs(desired_joint_configurations - jpos_before) < .1):
+            print "if"
             desired_joint_to_move_was_unlocked = True
             # if we want a no-op don't actually call the robot
             jpos = desired_joint_configurations
 
         else:
+            print "else"
             # run best action, i.e. move joints to desired position
+            print desired_joint_configurations,desired_joint_to_move
             desired_joint_to_move_was_unlocked = action_machine.run_action(desired_joint_configurations, desired_joint_to_move)
-
+            print "after action"
             # get real position after action (PD-controllers aren't perfect)
             final_joint_configurations = np.array([int(j.get_q()) for j in world.joints])
-
+        print "c"
         for n, p in enumerate(final_joint_configurations):
             current_data["RealPos" + str(n)] = [p]
 
@@ -504,11 +605,11 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
 
         #measured_locked_state = locked_states[desired_joint_to_move]
         measured_locked_state = not desired_joint_to_move_was_unlocked
-
+        print "d"
         # Check that 'not desired_joint_to_move_was_unlocked' is always == locked_states[desired_joint_to_move]
         if locked_states[desired_joint_to_move] != (not desired_joint_to_move_was_unlocked):
             print "Error: locked_states[desired_joint_to_move] != (not desired_joint_to_move_was_unlocked)"
-            exit(-1)
+            #ugly exit(-1)
 
 
         for n, p in enumerate(locked_states):
@@ -524,7 +625,7 @@ def dependency_learning(N_actions, N_samples, world, objective_fnc,
             idx_last_successes.append(desired_joint_to_move)
         else:
             idx_last_failures.append(desired_joint_to_move)
-
+        print "e"
         # add new experience
         new_experience = {'data': final_joint_configurations, 'value': int(measured_locked_state)}
         #print new_experience
@@ -589,13 +690,13 @@ def build_model_prior_3d(world, independent_prior):
     j = world.joints
     n = len(j)
 
-    # #uniform
+    #uniform
     model_prior = np.array([[0 if x == y
                               else 1.0/n
                              for x in range(n + 1)]
                              for y in range(n)])
 
-    #adversarial:
+    # #adversarial:
     # model_prior = np.array([[0 if x == y
     #                          else independent_prior
     # if x == n
@@ -612,6 +713,11 @@ def build_model_prior_3d(world, independent_prior):
 
 
 def run_experiment(args):
+    global ugly_scripted_file
+    global ugly_scripted_counter
+    if args.objective in ["scripted_heuristic","scripted_random"]:
+        ugly_scripted_file = pd.read_pickle(args.scriptfile)
+        ugly_scripted_counter = 0
     # reset all things for every new experiment
     pid = multiprocessing.current_process().pid
     seed = time.gmtime()
@@ -669,6 +775,10 @@ def run_experiment(args):
         objective = one_step_look_ahead_ce
     elif args.objective == "heuristic_proximity":
         objective = heuristic_proximity
+    elif args.objective == "scripted_heuristic":
+        objective = scripted_heuristic
+    elif args.objective == "scripted_random":
+        objective = scripted_random
     else:
         raise Exception("You tried to choose an objective that doesn't exist: " + args.objective)
 
@@ -701,11 +811,12 @@ def run_experiment(args):
 
 
 def main():
+
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", "--objective", required=True,
                         help="The objective to optimize for exploration",
                         choices=['random', 'entropy', 'cross_entropy', '1s_cross_entropy',
-                                 'heuristic_proximity'])
+                                 'heuristic_proximity', 'scripted_heuristic', 'scripted_random'])
     parser.add_argument("-c", "--changepoint", action='store_true',
                         help="Should change points used as prior")
     parser.add_argument("-t", "--threads", type=int,
@@ -733,6 +844,8 @@ def main():
                              "have joint limits lock other joints")
     parser.add_argument("-l", "--lockboxfile", type=str, default=None,
                         help="A file that contains a lock-box specification")
+    parser.add_argument("--scriptfile", type=str, default=None,
+                        help="A file that contains a list of scripted actions")
 
     args = parser.parse_args()
 

@@ -117,13 +117,17 @@ def print_actions(df, num_joints=None):
     pd.set_option('expand_frame_repr', False)
     if num_joints is None:
         num_joints = determine_num_joints(df, None)
+    import ipdb
+    ipdb.set_trace()
+    print "----"
+    print(df[[u'Posterior{}'.format(j) for j in range(num_joints)]])
 
-    print(df[[u'DesJToMove'] +
-             ['RealPosBef{}'.format(j) for j in range(num_joints)] +
-             ['DesiredPos{}'.format(j) for j in range(num_joints)] +
-             ['LSBefore{}'.format(j) for j in range(num_joints)]
+    #print(df[[u'DesJToMove'] +
+             #['RealPosBef{}'.format(j) for j in range(num_joints)] +
+             #['DesiredPos{}'.format(j) for j in range(num_joints)] +
+             #['LSBefore{}'.format(j) for j in range(num_joints)]
              #['LSAfter{}'.format(j) for j in range(num_joints)]
-            ])
+            #])
 
 def plot_kld(df, meta, num_joints=None, axarr=None, folder_name=None):
     if num_joints is None:
@@ -154,7 +158,7 @@ def plot_joints_to_be_opened(df, meta, num_joints=None):
     f=plt.figure()
     locking_states_beginning=[]
     for j in range(num_joints):
-        locking_states_beginning.append(df["LSBefore"+str(j)].as_matrix())
+        locking_states_beginning.append(df["LSAfter"+str(j)].as_matrix())
     locking_states_beginning = np.vstack(locking_states_beginning)
     #print df
 

@@ -40,8 +40,8 @@ joint_dependencies: [
 #A list of dictionary that represents in which interval each master joint locks the slave joint. For the dictionary at index i with entry j:x, the joint i is locked if joint j is in one of the intervals defined in list x
 joint_lockers: [
 {},
-{0: [[-1,160]] },
-{1: [[-1,160]] },
-{2: [[-1,160]] },
-{3: [[-1,160]] }]
+{0: [[-1,50]] },
+{1: [[-1,50]] },
+{2: [[-1,50]] },
+{3: [[-1,50]] }]
 

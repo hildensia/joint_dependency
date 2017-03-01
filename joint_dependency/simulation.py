@@ -520,6 +520,9 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
 
     fig = plt.figure()
     ax = fig.add_subplot(111, aspect='equal')
+
+    #lockbox_joint_positions[:,0]=-lockbox_joint_positions[:,0]
+
     lockbox_joint_positions_np = np.array(lockbox_joint_positions)
 
     ax.scatter(lockbox_joint_positions_np[:, 0], lockbox_joint_positions_np[:, 1])
@@ -527,10 +530,10 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
     for label, x, y in zip(labels, lockbox_joint_positions_np[:, 0], lockbox_joint_positions_np[:, 1]):
         ax.annotate(
             label,
-            xy=(x, y), xytext=(-20, 20),
+            xy=(x, y), xytext=(-30, 30),
             textcoords='offset points', ha='right', va='bottom',
             bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
-            arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0'))
+            arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0.'))
 
     if noise is None:
         noise = {'q': 10e-6, 'vel': 10e-6}
@@ -585,13 +588,18 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
                         locks=intervals_master)
             patch1 = mpl.patches.FancyArrowPatch(lockbox_joint_positions[idx_master, 0:2],
                                                  lockbox_joint_positions[i, 0:2],
-                                                 connectionstyle='arc3, rad=0.7', arrowstyle='simple', color='b',
+                                                 connectionstyle='arc3, rad=-0.2', arrowstyle='simple', color='b',
                                                  mutation_scale=20)
             ax.add_patch(patch1)
 
-            min_y = min(lockbox_joint_positions[:, 1]) -1
-            max_y = max(lockbox_joint_positions[:, 1]) +1
+            min_y = min(lockbox_joint_positions[:, 1]) -.25
+            max_y = max(lockbox_joint_positions[:, 1]) +.5
             ax.set_ylim([min_y, max_y])
+            #ax.set_ylim([-3, 3])
+            min_x = min(lockbox_joint_positions[:, 0]) -.25
+            max_x = max(lockbox_joint_positions[:, 0]) +0.5
+            ax.set_xlim([min_x, max_x])
+            #ax.set_ylim([-3,3])
             dependency_structure_gt[i, idx_master] = 1
 
     #Compute the locking depency ground truth:
