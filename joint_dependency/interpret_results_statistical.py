@@ -6,7 +6,7 @@ Created on Thu Jul 21 10:23:46 2016
 import argparse
 import cPickle
 import seaborn as sns
-
+import matplotlib
 import matplotlib.pylab as plt
 import pandas as pd
 import numpy as np
@@ -24,6 +24,10 @@ old_world = None
 
 sns.set_style("darkgrid")
 sns.set(font_scale=1.5)
+
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
+
 lscol_ptn = re.compile("LSAfter([0-9]+)")
 lscol_ptn_old = re.compile("LockingState([0-9]+)")
 def determine_num_joints(df):
@@ -121,7 +125,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", "--output_filename",
-                        help="the name of the output file",nargs='+')
+                        help="the name of the output file")
     parser.add_argument("--old_pickle_ground_truth_filename",
                         help="the name of the ground truth file (is only needed for old files)")
     parser.add_argument("-f", "--files", required=True,
@@ -244,39 +248,46 @@ if __name__ == "__main__":
     ####################################################################
     # UNCOMMENT THIS IF RUNNING FOR 2-TO-1 DEPENDENCY WORLDS
     #####################################################################
-    # old_world = create_lockbox(
-    #     use_joint_positions=True,
-    #     use_simple_locking_state=True,
-    #     lockboxfile=args.old_pickle_ground_truth_filename)
-    # for objective in objectives:
-    #     for i, df in enumerate(dfs_per_objective[objective]):
-    #         # if df["is_old"].loc[0]:
-    #         #     n_joints = determine_num_joints(df)
-    #         #
-    #         #     posteriors = [df["Posterior"+str(j)].as_matrix() for j in range(n_joints)]
-    #         #     for n, (pr, gtr) in enumerate(zip(np.array(posteriors), old_world.dependency_structure_gt)):
-    #         #         kls=[]
-    #         #         for p in pr:
-    #         #             #print gtr, pr
-    #         #             kls.append(entropy(gtr, p))
-    #         #         df["KLD" + str(n)] = kls
-    #         #     meta = metas_per_objective[objective][i]
-    #         #     #ipdb.set_trace()
-    #         #     meta["DependencyGT"]=old_world.dependency_structure_gt
-    #
-    #         # ugly, usually use the one above
-    #         n_joints = determine_num_joints(df)
-    #         posteriors = [df["Posterior" + str(j)].as_matrix() for j in range(n_joints)]
-    #         for n, pr in enumerate(np.array(posteriors)):
-    #             gtr = old_world.dependency_structure_gt[n,:]
-    #             kls = []
-    #             for p in pr:
-    #                 # print gtr, pr
-    #                 kls.append(entropy(gtr, p))
-    #             df["KLD" + str(n)] = kls
-    #         meta = metas_per_objective[objective][i]
-    #         # ipdb.set_trace()
-    #         meta["DependencyGT"] = old_world.dependency_structure_gt
+    print "!!!!!!!!!!!!!!!!!!"
+    print "!!!!! ATTENTION, YOU ARE RUNNING THIS SCRIPT FOR 2-TO-1 DEPENDENCY WORLDS!"
+    print "!!!!!!!!!!!!!!!!!"
+    old_world = create_lockbox(
+        use_joint_positions=True,
+        use_simple_locking_state=True,
+        lockboxfile=args.old_pickle_ground_truth_filename)
+    for objective in objectives:
+        for i, df in enumerate(dfs_per_objective[objective]):
+            # if df["is_old"].loc[0]:
+            #     n_joints = determine_num_joints(df)
+            #
+            #     posteriors = [df["Posterior"+str(j)].as_matrix() for j in range(n_joints)]
+            #     for n, (pr, gtr) in enumerate(zip(np.array(posteriors), old_world.dependency_structure_gt)):
+            #         kls=[]
+            #         for p in pr:
+            #             #print gtr, pr
+            #             kls.append(entropy(gtr, p))
+            #         df["KLD" + str(n)] = kls
+            #     meta = metas_per_objective[objective][i]
+            #     #ipdb.set_trace()
+            #     meta["DependencyGT"]=old_world.dependency_structure_gt
+
+            # ugly, usually use the one above
+            n_joints = determine_num_joints(df)
+            posteriors = [df["Posterior" + str(j)].as_matrix() for j in range(n_joints)]
+            for n, pr in enumerate(np.array(posteriors)):
+                gtr = old_world.dependency_structure_gt[n,:]
+                kls = []
+                for p in pr:
+                    # print gtr, pr
+                    kls.append(entropy(gtr, p))
+                df["KLD" + str(n)] = kls
+            meta = metas_per_objective[objective][i]
+            # ipdb.set_trace()
+            meta["DependencyGT"] = old_world.dependency_structure_gt
+
+
+
+
 
     # Plots that combine all joints into a single measure
     # f_combined_measures, axarr_combined_measures = plt.subplots(3, 1)
@@ -346,7 +357,11 @@ if __name__ == "__main__":
                     #print "--------------"
                     #print DependencyBelief
                     #print DependencyGT
-                n_correct_dependency_beliefs = np.sum((DependencyBelief >= 0.5) * DependencyGT>0.0)
+                #n_correct_dependency_beliefs = np.sum((DependencyBelief >= 0.5) * DependencyGT>0.0)
+                classification_belief=np.zeros(DependencyGT.shape)
+                for i, j in enumerate(np.argmax(DependencyBelief, axis=1)):
+                    classification_belief[i,j]=1.0
+                n_correct_dependency_beliefs = np.sum(classification_belief * DependencyGT > 0.0)
                 #print n_correct_dependency_beliefs
                 list_n_correct_dependency_belief[i_experiment].append(n_correct_dependency_beliefs)
 
@@ -407,13 +422,19 @@ if __name__ == "__main__":
     ax_sums_of_kld_over_time.set_xlim((0,length_of_longest_df))
     ax_num_joints_to_be_opened.set_xlim((0,length_of_longest_df))
 
-
+    print "output filename", args.output_filename
+    if args.output_filename in ["real_mlr_adversarial_2_lock_1","simulated_adversarial_2_lock_1"]:
+        print "Setting ax_sums_of_kld_over_time.set_ylim((6,12))"
+        ax_sums_of_kld_over_time.set_ylim((6,12))
+    if args.output_filename in ["real_mlr_uniform_2_lock_1", "simulated_uniform_2_lock_1"]:
+        print "Setting ax_sums_of_kld_over_time.set_ylim((4,6))"
+        ax_sums_of_kld_over_time.set_ylim((4,6))
     if args.output_filename:
         print args.output_filename
         print type(args.output_filename)
-        f_entropy.savefig(args.output_filename[0] + '_entropy.pdf')
-        f_num_joints_to_be_opened.savefig(args.output_filename[0] + '_joints_to_be_opened.pdf')
-        f_kld.savefig(args.output_filename[0] + '_kld.pdf')
-        f_correct_classifications.savefig(args.output_filename[0] + '_correct_classifications.pdf')
+        f_entropy.savefig(args.output_filename + '_entropy.pdf')
+        f_num_joints_to_be_opened.savefig(args.output_filename + '_joints_to_be_opened.pdf')
+        f_kld.savefig(args.output_filename + '_kld.pdf')
+        f_correct_classifications.savefig(args.output_filename + '_correct_classifications.pdf')
     else:
         plt.show()

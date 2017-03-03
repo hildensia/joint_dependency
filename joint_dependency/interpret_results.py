@@ -6,7 +6,7 @@ Created on Thu Jul 21 10:23:46 2016
 import argparse
 import cPickle
 import seaborn as sns
-
+import matplotlib
 import matplotlib.pylab as plt
 import pandas as pd
 import numpy as np
@@ -16,6 +16,9 @@ import re
 
 import os
 
+
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 sns.set_style("darkgrid")
 
 save_to_file = False

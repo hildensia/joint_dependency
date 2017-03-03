@@ -9,6 +9,8 @@ import yaml
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
+#mpl.rcParams['pdf.fonttype'] = 42
+#mpl.rcParams['ps.fonttype'] = 42
 
 def get_state(q, states):
     i = 0
@@ -521,18 +523,23 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
     fig = plt.figure()
     ax = fig.add_subplot(111, aspect='equal')
 
+    #font = {'family': 'normal',
+    #        'weight': 'bold',
+    #        'size': 30}
+    #mpl.rc('font', **font)
+
     #lockbox_joint_positions[:,0]=-lockbox_joint_positions[:,0]
 
     lockbox_joint_positions_np = np.array(lockbox_joint_positions)
-
+    lockbox_joint_positions[:,1]=lockbox_joint_positions[:,1]
     ax.scatter(lockbox_joint_positions_np[:, 0], lockbox_joint_positions_np[:, 1])
     labels = [str(i) for i in range(num_of_joints)]
     for label, x, y in zip(labels, lockbox_joint_positions_np[:, 0], lockbox_joint_positions_np[:, 1]):
         ax.annotate(
             label,
-            xy=(x, y), xytext=(-30, 30),
+            xy=(x, -y), xytext=(-30, 30),
             textcoords='offset points', ha='right', va='bottom',
-            bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
+            bbox=dict(boxstyle='round,pad=0.5', fc='white', alpha=0.5),
             arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0.'))
 
     if noise is None:
@@ -588,7 +595,7 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
                         locks=intervals_master)
             patch1 = mpl.patches.FancyArrowPatch(lockbox_joint_positions[idx_master, 0:2],
                                                  lockbox_joint_positions[i, 0:2],
-                                                 connectionstyle='arc3, rad=-0.2', arrowstyle='simple', color='b',
+                                                 connectionstyle='arc3, rad=-0.2', arrowstyle=mpl.patches.ArrowStyle.Fancy(head_length=.8, head_width=1.0, tail_width=.1), color='b',
                                                  mutation_scale=20)
             ax.add_patch(patch1)
 
@@ -614,7 +621,7 @@ def create_lockbox(num_of_joints=5, noise=None, use_joint_positions=False,
     print dependency_structure_gt
 
     world.set_dependency_structure_gt(dependency_structure_gt)
-
+    #plt.axis('off')
     #plt.show()
 
     # MultiLocker(world, master=world.joints[2], slave=world.joints[1],
