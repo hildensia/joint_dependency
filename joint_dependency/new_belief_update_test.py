@@ -101,12 +101,19 @@ gt_state[5] = np.array([0,0,#joint zero is unlocked, depends on itself (independ
                      1,1,#,#joint two is locked, depends on joint one
                      1, 2,#joint three is locked, depends on joint two
                      1,3])#joint four is locked, depends on joint three
+gt_state[6] = np.array([0,0,#joint zero is unlocked, depends on itself (independent)
+                     1,0,#joint one is locked, depends on joint zero
+                     1,1,#,#joint two is locked, depends on joint one
+                     1, 2,#joint three is locked, depends on joint two
+                     1,3,#joint four is locked, depends on joint three
+                    1, 4])#joint five is locked, depends on joint four
 
 actions = dict()
 actions[2] = [0,1,1,0,1,0,1,0,1,0]
 actions[3] = [0,1,2,1,0,1,2,0,1,0,2,1,0]
 actions[4] =  [0,1,2 ,3, 0,1,2,3,1, 0, 3, 1, 2,  3, 0]
 actions[5] = [0,1,2 ,3, 4,0,1,2,3,1, 0, 3, 1, 2, 4, 3, 0, 4]
+actions[6] = [0,1,2 ,3, 4,0,1,2,3,1, 0, 3, 1, 2, 4, 3, 0, 4]
 for a in actions[n_joints]:
     print "==== Executing action ",a
     #is it locked?
