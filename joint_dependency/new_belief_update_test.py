@@ -11,6 +11,8 @@ import copy
 n_joints = 5
 n_locking_states =2
 
+np.set_printoptions(precision=4, suppress=True)
+
 def retrieveRowCol(ls, ds, n_joints):
     base2 = (np.ones(len(ls))*2)**np.linspace(n_joints-1, 0, n_joints, endpoint=True)
     rows_new = np.array(ls)*base2
@@ -22,8 +24,8 @@ def retrieveRowCol(ls, ds, n_joints):
 
 #create all possible locking dependencies
 possible_locking_dependencies = cartesian(np.tile(np.array(range(n_joints)),(n_joints,1)))
-print "All possible locking dependencies"
-print possible_locking_dependencies
+#print "All possible locking dependencies"
+#print possible_locking_dependencies
 n_possible_locking_dependencies = len(possible_locking_dependencies)
 
 possible_locking_dependencies2 = cartesian((n_joints*[range(n_joints)]))
@@ -49,6 +51,8 @@ possible_locking_state_per_locking_dependencies = np.array([initial_locking_comb
 
 #the hypothesis space, the combination of all possible dependency structures and all possible initial locking states
 X = np.ones((n_possible_initial_locking_states, n_possible_locking_dependencies))
+
+X /= np.sum(X)
 
 belief_space = []
 for (row,ls) in enumerate(possible_locking_states2):
@@ -79,127 +83,122 @@ p_locking = np.ones((n_joints,n_joints,2**n_joints))
 
 #
 #gt_locking = np.zeros(2*n_joints)
-gt_state = np.array([0,0,#joint zero is unlocked, depends on itself (independent)
+gt_state = dict()
+gt_state[2] = np.array([0,0,#joint zero is unlocked, depends on itself (independent)
+                     1,0#joint one is locked, depends on joint zero
+                     ])
+gt_state[3] = np.array([0,0,#joint zero is unlocked, depends on itself (independent)
                      1,0,#joint one is locked, depends on joint zero
-                     1,1,#joint two is locked, depends on joint one
-                     1, 2,
-                     1,3])
+                     1,1#joint two is locked, depends on joint one
+                     ])#joint three is locked, depends on joint two
+gt_state[4] = np.array([0,0,#joint zero is unlocked, depends on itself (independent)
+                     1,0,#joint one is locked, depends on joint zero
+                     1,1,#,#joint two is locked, depends on joint one
+                     1, 2#joint three is locked, depends on joint two
+                     ])
+gt_state[5] = np.array([0,0,#joint zero is unlocked, depends on itself (independent)
+                     1,0,#joint one is locked, depends on joint zero
+                     1,1,#,#joint two is locked, depends on joint one
+                     1, 2,#joint three is locked, depends on joint two
+                     1,3])#joint four is locked, depends on joint three
 
-actions = [0,1,2,3, 4,0,1,2,3,1, 0, 3, 1, 2, 4, 3, 0, 4]
-for a in actions:
+actions = dict()
+actions[2] = [0,1,1,0,1,0,1,0,1,0]
+actions[3] = [0,1,2,1,0,1,2,0,1,0,2,1,0]
+actions[4] =  [0,1,2 ,3, 0,1,2,3,1, 0, 3, 1, 2,  3, 0]
+actions[5] = [0,1,2 ,3, 4,0,1,2,3,1, 0, 3, 1, 2, 4, 3, 0, 4]
+for a in actions[n_joints]:
     print "==== Executing action ",a
     #is it locked?
-    is_locked = gt_state[2*a]
+    is_locked = gt_state[n_joints][2*a]
     m=not is_locked
     if m:
         for j in range(n_joints):
-            if j != a and gt_state[2*j+1] == a:
-                gt_state[2*j] = 1 - gt_state[2*j]
+            if j != a and gt_state[n_joints][2*j+1] == a:
+                gt_state[n_joints][2*j] = 1 - gt_state[n_joints][2*j]
 
-    #print possible_locking_state_per_locking_dependencies
 
-    # #Loop over all possible dependency structures
-    # for i_p, p in enumerate(possible_locking_dependencies):
-    #     possible_locking_states_for_this_dependency_structure = possible_locking_state_per_locking_dependencies[i_p]
-    #     for i_possible_locking_state, possible_locking_state in enumerate(possible_locking_states_for_this_dependency_structure):
-    #         X[i_possible_locking_state, i_p] = X[i_possible_locking_state, i_p] and possible_locking_state[a]==is_locked
-    #
-    #     # forward model for this individual dependency structure
-    #     #Find out which joints would be changed if we actuate a and the dependency structure was true
-    #     joints_that_would_change_depending_on_a = p[p==a]
-    #     #For all locking states that could be true under the given hypothesis, change the locking states
-    #     possible_locking_states_for_this_dependency_structure = possible_locking_state_per_locking_dependencies[i_p]
-    #     if len(joints_that_would_change_depending_on_a):
-    #         print "joints that would change", joints_that_would_change_depending_on_a
-    #         for i_possible_locking_state, possible_locking_state in enumerate(possible_locking_states_for_this_dependency_structure):
-    #             #print "---------------"
-    #             #print "possible_locking_state", possible_locking_state_per_locking_dependencies[i_p,:]
-    #             possible_locking_state_per_locking_dependencies[i_p,joints_that_would_change_depending_on_a]=1-possible_locking_state[joints_that_would_change_depending_on_a]
-    #             #print "possible_locking_state", possible_locking_state_per_locking_dependencies[i_p,:]
-    #             #possible_locking_states_for_this_dependency_structure[i_possible_locking_state,:]=possible_locking_state
-    #         #print possible_locking_states_for_this_dependency_structure
-    #
-    #     #possible_locking_dependencies[i_p,:]=possible_locking_states_for_this_dependency_structure
+    #print 'Xbefupdate'
+    #print X
 
+    p_a_succcessful = 0.9
+    p_a_failed = (1 - p_a_succcessful)
+
+    X_copy = copy.deepcopy(X)
+
+    for rowsx in range(len(X)):
+        for columnx in range(len(X[rowsx])):
+            # If the state indicates that the actuated joint is unlocked
+            if belief_space[rowsx][columnx][0][a] == 0:
+
+                #With p_a_failed we stay in the same state
+                #X_copy[rowsx][columnx] += p_a_failed*X[rowsx, columnx]
+
+                # With p_a_succcessful we move to a state where the dependant joints change their locking state
+                dependent_joints = belief_space[rowsx][columnx][1] == a
+                if np.any(dependent_joints):
+                    new_ls = copy.deepcopy(belief_space[rowsx][columnx][0])
+                    #print "old ls ", new_ls
+                    #print "ds ", belief_space[rowsx][columnx][1]
+                    for joint_idx, v in enumerate(dependent_joints):
+                        if v and joint_idx != a:
+                            new_ls[joint_idx] = 1 - new_ls[joint_idx]
+                        #if v and joint_idx == a:
+                        #    new_ls[joint_idx] = 0
+                    #print "new ls ",new_ls
+                    # new_ls[dependent_joints] = 1 - new_ls[dependent_joints]
+                    new_ds = copy.deepcopy(belief_space[rowsx][columnx][1])
+                    row_change, column_change = retrieveRowCol(new_ls, new_ds, n_joints)
+
+                    X_copy[row_change, column_change] += p_a_succcessful*X[rowsx, columnx]
+                    X_copy[rowsx, columnx] -= p_a_succcessful * X[rowsx, columnx]
+
+    X = X_copy
+
+    X /= np.sum(X)
+
+    #print 'Xafterbeliefupdate'
+    #print X
+
+    p_notMovable_conditionedOn_locked = 0.9
+    p_movable_conditionedOn_locked = (1.0 - p_notMovable_conditionedOn_locked)
+
+    p_notMovable_conditionedOn_unlocked = 0.1
+    p_movable_conditionedOn_unlocked = (1.0-p_notMovable_conditionedOn_unlocked)
+
+    #observation update
     if not m:
+        #print "observed not movable"
         for rowsx in range(len(X)):
             for columnx in range(len(X[rowsx])):
+                #print belief_space[rowsx][columnx][0][a]
                 if belief_space[rowsx][columnx][0][a] == 0: # == 'unlocked'
                     # Trimming non-plausible states -> the state that assume that the joint should be unlocked
-                    X[rowsx, columnx] = 0
+                    #X[rowsx, columnx] = 0
+                    X[rowsx, columnx] *= p_notMovable_conditionedOn_unlocked
+                    #print X[rowsx, columnx]
 
+                if belief_space[rowsx][columnx][0][a] == 1:  # == 'locked'
+                    X[rowsx, columnx] *= p_notMovable_conditionedOn_locked
 
                 if belief_space[rowsx][columnx][1][a] == a:
                     # Trimming non-plausible states -> the ones that state that the joint is independent (depends on itself)
                     X[rowsx, columnx] = 0
-
-
-
-    #print 'xbef'
-    #print X
     if m:
+        #print "observed movable"
         for rowsx in range(len(X)):
             for columnx in range(len(X[rowsx])):
-                if belief_space[rowsx][columnx][0][a] == 1:
+                if belief_space[rowsx][columnx][0][a] == 1: # == 'locked'
                     #Trimming non-plausible states
-                    X[rowsx, columnx] = 0
+                    #X[rowsx, columnx] = 0
+                    X[rowsx, columnx] *= p_movable_conditionedOn_locked
+                    #print "locked",X[rowsx, columnx]
 
-        X_copy = copy.deepcopy(X)
-        for rowsx in range(len(X)):
-            for columnx in range(len(X[rowsx])):
-                # Moving plausible states
-                if X[rowsx, columnx] == 1:
-                    #print "___Possible locking state: ", belief_space[rowsx][columnx][0]
-                    #print "___Possible locking dependency: ", belief_space[rowsx][columnx][1]
+                if belief_space[rowsx][columnx][0][a] == 0:  # == 'unlocked'
+                    X[rowsx, columnx] *= p_movable_conditionedOn_unlocked
+                    #print "unlocked", X[rowsx, columnx]
 
-                    dependent_joints = belief_space[rowsx][columnx][1] == a
-                    #print dependent_joints
-                    if np.any(dependent_joints):
-                        new_ls = list(belief_space[rowsx][columnx][0])
-
-                        for joint_idx,v in enumerate(dependent_joints):
-                            if v and joint_idx != a:
-                                new_ls[joint_idx] = 1 - new_ls[joint_idx]
-
-                        # new_ls[dependent_joints] = 1 - new_ls[dependent_joints]
-                        new_ds = list(belief_space[rowsx][columnx][1])
-
-                        row_change, column_change = retrieveRowCol(new_ls, new_ds, n_joints)
-
-                        X_copy[row_change][column_change] = 1
-                        #
-                        # for rowsx2 in range(len(X)):
-                        #     for columnx2 in range(len(X[rowsx])):
-                        #         if np.all(belief_space[rowsx2][columnx2][0] == new_ls) and np.all(
-                        #                         belief_space[rowsx2][columnx2][1] == new_ds):
-                        #             X_copy[rowsx2][columnx2] = 1
-                        #
-                        #             if row_change == rowsx2 and column_change == columnx2:
-                        #                 print "great"
-                        #             else:
-                        #                 print "kaka"
-                        #             break
-                        #             # print "___New Possible locking state: ", belief_space[rowsx2][columnx2][0]
-                        #             # print "___New Possible locking dependency: ", belief_space[rowsx2][columnx2][1]
-                        X_copy[rowsx, columnx] = 0
-
-
-                    # for joint_idx, jd in enumerate(belief_space[rowsx][columnx][1]):
-                    #     if jd == a and joint_idx != a:
-                    #         #print "joint %d could depend on the moved joint and its locking state should change"%(joint_idx)
-                    #         new_ls = list(belief_space[rowsx][columnx][0])
-                    #         new_ls[joint_idx] = 1 - new_ls[joint_idx]
-                    #         new_ds = list(belief_space[rowsx][columnx][1])
-                    #         for rowsx2 in range(len(X)):
-                    #             for columnx2 in range(len(X[rowsx])):
-                    #                 if np.all(belief_space[rowsx2][columnx2][0] == new_ls) and  np.all(belief_space[rowsx2][columnx2][1] == new_ds):
-                    #                     X_copy[rowsx2][columnx2] = 1
-                    #                     #print "___New Possible locking state: ", belief_space[rowsx2][columnx2][0]
-                    #                     #print "___New Possible locking dependency: ", belief_space[rowsx2][columnx2][1]
-                    #         X_copy[rowsx, columnx] = 0
-        X = X_copy
-
-
+    X /= np.sum(X)
 
 
     #print possible_locking_state_per_locking_dependencies
@@ -209,21 +208,26 @@ for a in actions:
         # if it was locked, then it is unlocked now
         p_locking[j,a,j]=1-p_locking[j,a,j]
 
+    #print "Xfinal"
     #print X
 
     printing_n = 0
     max_printing = 20
+
+
+    maxxx = np.max(X)
+    print "maxxx", maxxx
     for rowsx in range(len(X)):
         for columnx in range(len(X[rowsx])):
 
-            if X[rowsx,columnx] == 1 and printing_n < max_printing:
+            if np.fabs(X[rowsx,columnx] - maxxx) < 0.001 and printing_n < max_printing:
                 print "Possible locking state: ", belief_space[rowsx][columnx][0]
                 print "Possible locking dependency: ", belief_space[rowsx][columnx][1]
                 #continue
                 printing_n +=1
 
-    print "GT locking state: ", gt_state[range(0,2*n_joints,2)]
-    print "GT locking dependency: ", gt_state[range(1, 2*n_joints+1, 2)]
+    print "GT locking state: ", gt_state[n_joints][range(0,2*n_joints,2)]
+    print "GT locking dependency: ", gt_state[n_joints][range(1, 2*n_joints+1, 2)]
 
     print '============================================='
 
