@@ -68,21 +68,6 @@ for (row,ls) in enumerate(possible_locking_states2):
 #print "The belief space"
 #print belief_space
 
-# The Hypothesis space: for all joints - (locking state, what it depends on)
-p_d = np.ones((n_joints,n_joints))
-# The belief over locking state for each hypothesis
-# first two dimensions: the hypothesis
-# third dimension: the locking state for this hypothesis
-p_locking = np.ones((n_joints,n_joints,2**n_joints))
-
-
-#print "p_locking",p_locking
-#print "p_d", p_d
-# X = np.ones((n_locking_states, n_joints, n_locking_states, n_joints))
-
-
-#
-#gt_locking = np.zeros(2*n_joints)
 gt_state = dict()
 gt_state[2] = np.array([0,0,#joint zero is unlocked, depends on itself (independent)
                      1,0#joint one is locked, depends on joint zero
@@ -124,10 +109,10 @@ for a in actions[n_joints]:
             if j != a and gt_state[n_joints][2*j+1] == a:
                 gt_state[n_joints][2*j] = 1 - gt_state[n_joints][2*j]
 
-
     #print 'Xbefupdate'
     #print X
 
+    # System update (with motion model)
     p_a_succcessful = 0.9
     p_a_failed = (1 - p_a_succcessful)
 
@@ -207,20 +192,11 @@ for a in actions[n_joints]:
 
     X /= np.sum(X)
 
-
-    #print possible_locking_state_per_locking_dependencies
-
-    for j in range(n_joints):
-        # if the joint was unlocked, then it is locked now
-        # if it was locked, then it is unlocked now
-        p_locking[j,a,j]=1-p_locking[j,a,j]
-
     #print "Xfinal"
     #print X
 
     printing_n = 0
     max_printing = 20
-
 
     maxxx = np.max(X)
     print "maxxx", maxxx
@@ -237,4 +213,3 @@ for a in actions[n_joints]:
     print "GT locking dependency: ", gt_state[n_joints][range(1, 2*n_joints+1, 2)]
 
     print '============================================='
-
